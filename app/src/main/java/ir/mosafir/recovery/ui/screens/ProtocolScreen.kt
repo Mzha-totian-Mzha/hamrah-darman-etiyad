@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +27,7 @@ import ir.mosafir.recovery.data.PersianDate
 import ir.mosafir.recovery.data.PlanStep
 import ir.mosafir.recovery.data.Protocol
 import ir.mosafir.recovery.data.SubstanceType
+import ir.mosafir.recovery.data.StepKind
 import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatDose
 import ir.mosafir.recovery.data.formatNumber
@@ -101,7 +101,7 @@ fun ProtocolScreen(settings: UserSettings) {
                 }
                 HorizontalDivider()
 
-                itemsIndexed(plan.steps) { index, step ->
+                plan.steps.forEachIndexed { index, step ->
                     StepRow(
                         step = step,
                         isCurrent = index == currentIndex,

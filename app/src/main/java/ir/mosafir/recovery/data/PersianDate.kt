@@ -110,7 +110,7 @@ object PersianDate {
     fun formatLong(millis: Long): String {
         val p = fromMillis(millis)
         val jy = p[0]; val jm = p[1]; val jd = p[2]
-        return "${jd.toPersianDigits()} ${MONTH_NAMES[jm - 1]} ${jy.toString().toPersianDigits()}"
+        return "${jd.toString().toPersianDigits()} ${MONTH_NAMES[jm - 1]} ${jy.toString().toPersianDigits()}"
     }
 }
 
