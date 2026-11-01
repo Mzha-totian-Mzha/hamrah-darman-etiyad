@@ -12,7 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import ir.mosafir.recovery.R
 
 // ---------- Palette (یاسی — Violet, calm & hopeful) ----------
-val VioletPrimary = Color(0xFF6750A4)
+// بنفش عمیق‌تر و پرجان‌تر برای تیترها و عناصر انتخابی
+val VioletPrimary = Color(0xFF5E35B1)
 val VioletSecondary = Color(0xFF7E66B8)
 val AmberAccent = Color(0xFFF9A825)
 val SoftBackground = Color(0xFFF9F6FD)
@@ -39,8 +40,9 @@ private val LightColors = lightColorScheme(
     surface = Color.White,
     onSurface = Color(0xFF1B1723),
     surfaceVariant = Color(0xFFEDE6F6),
-    onSurfaceVariant = Color(0xFF4A4453),
-    outline = Color(0xFF7C7489),
+    // متن‌های دوم تیره‌تر شدند تا کم‌نگاه و بی‌روح به نظر نرسند
+    onSurfaceVariant = Color(0xFF38323F),
+    outline = Color(0xFF655D75),
     outlineVariant = Color(0xFFCCC5D6)
 )
 

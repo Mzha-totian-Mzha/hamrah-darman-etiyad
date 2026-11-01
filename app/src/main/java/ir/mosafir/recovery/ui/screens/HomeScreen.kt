@@ -12,11 +12,16 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.data.JournalEntry
 import ir.mosafir.recovery.data.PersianDate
 import ir.mosafir.recovery.data.PlanStep
@@ -189,11 +194,8 @@ fun HomeScreen(
 
         item {
             SectionCard {
-                Text(
-                    text = "«$quote»",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // نقل‌قول (مثل «با ورزش، نظم و حضور در جلسات…») همیشه در یک خط
+                OneLineQuote(text = "«$quote»")
             }
         }
 
@@ -206,3 +208,25 @@ fun HomeScreen(
 }
 
 private fun startOfToday(): Long = Protocol.normalizeDay(System.currentTimeMillis())
+
+/**
+ * نقل‌قول همیشه در «یک خط» — اگر متن در عرض صفحه جا نشود،
+ * اندازه فونت خودکار کمی کوچک می‌شود تا هرگز دوخطی نشود.
+ */
+@Composable
+private fun OneLineQuote(text: String) {
+    var fontSize by remember(text) { mutableStateOf(15.sp) }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSize),
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier.fillMaxWidth(),
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize > 10.sp) fontSize -= 0.5.sp
+        }
+    )
+}

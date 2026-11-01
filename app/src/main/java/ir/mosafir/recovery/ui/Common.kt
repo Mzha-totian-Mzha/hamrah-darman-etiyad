@@ -1,5 +1,6 @@
 package ir.mosafir.recovery.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -19,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import ir.mosafir.recovery.ui.theme.AmberAccent
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 
-/** کارت استاندارد بخش‌ها */
+/** کارت استاندارد بخش‌ها — با حاشیه پررنگ بنفش دور تا دور */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
@@ -30,7 +31,8 @@ fun SectionCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.5.dp, VioletPrimary.copy(alpha = 0.40f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -49,13 +51,14 @@ fun SectionCard(
     }
 }
 
-/** کاشی آمار (عدد + برچسب) */
+/** کاشی آمار (عدد + برچسب) — با حاشیه پررنگ */
 @Composable
 fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        border = BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.30f))
     ) {
         Column(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -77,13 +80,14 @@ fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** بنر یادآوری/توضیح با پس‌زمینه کهربایی */
+/** بنر یادآوری/توضیح با پس‌زمینه کهربایی — با حاشیه پررنگ */
 @Composable
 fun NoticeCard(text: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+        border = BorderStroke(1.dp, AmberAccent.copy(alpha = 0.55f))
     ) {
         Row(
             modifier = Modifier.padding(12.dp),

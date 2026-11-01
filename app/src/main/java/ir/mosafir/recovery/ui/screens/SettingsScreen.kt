@@ -1,6 +1,11 @@
 package ir.mosafir.recovery.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -28,8 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.data.PersianDate
 import ir.mosafir.recovery.data.Protocol
 import ir.mosafir.recovery.data.SubstanceType
@@ -58,6 +66,44 @@ private val METHADONE_OPTIONS = listOf(5.0, 10.0, 16.5)
 
 /** گزینه‌های تعداد قرص ترامادول ۱۰۰ میلی‌گرمی در روز */
 private val TRAMADOL_OPTIONS = listOf(2.0, 4.0, 6.0, 10.0)
+
+/**
+ * چیپ فشرده مدل ساعت — دقیقاً مثل پیش‌نمایش:
+ * متن کامل هر مدل همیشه در «یک خط»، چیپ‌ها مرتب کنار هم،
+ * با حاشیه پررنگ دور تا دور (انتخاب‌شده: حاشیه بنفش پررنگ‌تر).
+ */
+@Composable
+private fun ModelChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surface
+            )
+            .border(
+                width = if (selected) 1.5.dp else 1.25.dp,
+                color = if (selected) VioletPrimary else MaterialTheme.colorScheme.outline,
+                shape = RoundedCornerShape(50)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 9.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -128,7 +174,11 @@ fun SettingsScreen(
                                     )
                                 )
                             },
-                            label = { Text(type.label, style = MaterialTheme.typography.labelMedium) }
+                            label = { Text(type.label, style = MaterialTheme.typography.labelMedium) },
+                            border = BorderStroke(
+                                1.25.dp,
+                                if (settings.substance == type) VioletPrimary else MaterialTheme.colorScheme.outline
+                            )
                         )
                     }
                 }
@@ -165,8 +215,9 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 options.forEach { option ->
+                                    val selectedOption = settings.consumption == option
                                     FilterChip(
-                                        selected = settings.consumption == option,
+                                        selected = selectedOption,
                                         onClick = {
                                             onSaveSettings(settings.copy(consumption = option))
                                         },
@@ -177,7 +228,11 @@ fun SettingsScreen(
                                                     else -> formatDose(option)
                                                 }
                                             )
-                                        }
+                                        },
+                                        border = BorderStroke(
+                                            1.25.dp,
+                                            if (selectedOption) VioletPrimary else MaterialTheme.colorScheme.outline
+                                        )
                                     )
                                 }
                             }
@@ -194,23 +249,17 @@ fun SettingsScreen(
 
         item {
             SectionCard(title = "مدل ساعت وعده‌ها") {
-                // سه مدل همیشه در یک ردیف کنار هم قرار می‌گیرند
-                Row(
+                // سه مدل مثل پیش‌نمایش: چیپ‌های فشرده کنار هم، متن کامل هر مدل در یک خط
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     DOSE_MODEL_OPTIONS.forEach { (model, label) ->
-                        FilterChip(
+                        ModelChip(
+                            label = label,
                             selected = settings.doseModel == model,
-                            onClick = { onSaveSettings(settings.copy(doseModel = model)) },
-                            label = {
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1
-                                )
-                            },
-                            modifier = Modifier.weight(1f)
+                            onClick = { onSaveSettings(settings.copy(doseModel = model)) }
                         )
                     }
                 }
@@ -255,7 +304,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۲٫۰ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۳٫۱ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
