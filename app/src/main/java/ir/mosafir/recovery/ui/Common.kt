@@ -13,10 +13,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.ui.theme.AmberAccent
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 
@@ -51,7 +57,7 @@ fun SectionCard(
     }
 }
 
-/** کاشی آمار (عدد + برچسب) — با حاشیه پررنگ */
+/** کاشی آمار (عدد + برچسب) — با حاشیه پررنگ؛ مقدار و برچسب همیشه «یک‌خطی» */
 @Composable
 fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
@@ -61,23 +67,61 @@ fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
         border = BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.30f))
     ) {
         Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
+            // مقدار (مثل «۵/۵۰cc» یا «TDS شرب متادون») — حتی اگر بلند باشد، یک خط می‌ماند
+            OneLineText(
                 text = value,
+                baseFontSize = 22,
+                minFontSize = 10,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = VioletPrimary
             )
-            Text(
+            // برچسب (مثل «پله جاری») — باز هم همیشه یک خط
+            OneLineText(
                 text = label,
+                baseFontSize = 11,
+                minFontSize = 7,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
+}
+
+/**
+ * متن همیشه «یک‌خطی» — اگر متن در عرض کاشی جا نشود، اندازه فونت
+ * قدم‌به‌قدم کوچک می‌شود تا هرگز دوخطی نشود (بدون exception).
+ */
+@Composable
+fun OneLineText(
+    text: String,
+    baseFontSize: Int,
+    minFontSize: Int,
+    style: androidx.compose.ui.text.TextStyle,
+    fontWeight: FontWeight? = null,
+    color: androidx.compose.ui.graphics.Color
+) {
+    var fontSize by remember(text) { mutableStateOf(baseFontSize) }
+    Text(
+        text = text,
+        style = style.copy(
+            fontSize = fontSize.sp,
+            lineHeight = (fontSize * 1.25f).sp
+        ),
+        fontWeight = fontWeight,
+        color = color,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier.fillMaxWidth(),
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize > minFontSize) fontSize = fontSize - 1
+        }
+    )
 }
 
 /** بنر یادآوری/توضیح با پس‌زمینه کهربایی — با حاشیه پررنگ */

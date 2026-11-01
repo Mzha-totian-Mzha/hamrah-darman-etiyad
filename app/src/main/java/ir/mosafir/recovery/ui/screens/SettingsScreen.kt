@@ -305,7 +305,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۳٫۱ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۳٫۲ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
