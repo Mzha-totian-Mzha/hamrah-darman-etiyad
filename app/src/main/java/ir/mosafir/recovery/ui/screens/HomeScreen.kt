@@ -226,7 +226,7 @@ private fun OneLineQuote(text: String) {
         softWrap = false,
         modifier = Modifier.fillMaxWidth(),
         onTextLayout = { result ->
-            if (result.hasVisualOverflow && fontSize > 10.sp) fontSize -= 0.5.sp
+            if (result.hasVisualOverflow && fontSize > 10.sp) fontSize = fontSize - 0.5.sp
         }
     )
 }
