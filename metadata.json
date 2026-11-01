@@ -1,0 +1,25 @@
+{
+  "name": "Hamrah Derman Etiyad — Congress 60 DST Companion",
+  "displayName": "همراه درمان اعتیاد",
+  "packageName": "ir.mosafir.recovery",
+  "version": "1.3.0",
+  "versionCode": 4,
+  "minSdk": 26,
+  "targetSdk": 34,
+  "compileSdk": 34,
+  "language": "kotlin",
+  "framework": "jetpack-compose",
+  "buildSystem": "gradle-kotlin-dsl",
+  "theme": "یاسی (بنفش)",
+  "icon": "نماد رسمی کنگره ۶۰ (دایره و مثلث)",
+  "doseUnit": "سی‌سی (تینکچر اپیوم)",
+  "contentSource": "کنگره ۶۰ — اصلاحیه پروتکل DST (۱۳۹۸/۳/۱)، کتاب مسافر و راهنمای ویرایش ۹۹",
+  "features": [
+    "شمارنده روزهای درمان",
+    "برنامه پله‌ای اختصاصی هر ماده بر حسب سی‌سی (۶–۳، خاخام ۹–۱۶٫۵، هروئین، محرک‌ها، متادون، ترامادول، شیره، الکل)",
+    "ثبت روزانه نوبت‌های مصرف و حال عمومی",
+    "کتابخانه آموزشی",
+    "کاملاً آفلاین و فارسی (RTL)"
+  ],
+  "createdAt": "2026-11-01"
+}

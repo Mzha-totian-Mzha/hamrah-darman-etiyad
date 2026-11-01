@@ -1,0 +1,125 @@
+package ir.mosafir.recovery.data
+
+/**
+ * انواع ماده مصرفی مطابق «اصلاحیه پروتکل DST» (قابل اجرا از ۱۳۹۸/۳/۱)
+ * و «راهنما و راهنمایی در کنگره ۶۰» ویرایش ۹۹ (ص۴۷ تا ۶۷).
+ *
+ * consumptionLabel = null یعنی برای آن ماده، برنامه از مقدار مصرف مستقل است
+ * (طبق جزوه، برنامه ثابت اجرا می‌شود).
+ */
+enum class SubstanceType(
+    val label: String,
+    val program: String,
+    val consumptionLabel: String?,
+    val consumptionHint: String
+) {
+    // ترتیب نمایش چیپ‌ها: الکل در انتهای ردیف اول کنار هروئین (بازخورد کاربر)
+    OPIUM_SMOKED(
+        "تریاک کشیدنی",
+        "برنامه ۶–۳",
+        null,
+        "تریاک و شیره کشیدنی به هر مقدار و هر شیوه (وافور، سیخ‌وسنگ، قرقری) و همچنین کرک: مصرف بلافاصله قطع و همزمان شربت OT شروع می‌شود؛ نیازی به ثبت مقدار نیست."
+    ),
+    OPIUM_ORAL(
+        "تریاک خوراکی",
+        "معادل‌سازی مستقیم یا برنامه ۹–۱۶٫۵",
+        "میزان مصرف روزانه (گرم)",
+        "تا ۱٫۶۵ گرم: هر ۱۰۰ میلی‌گرم تریاک معادل ۱ سی‌سی OT. بیشتر از آن: برنامه ۹–۱۶٫۵ (خاخام) اجرا می‌شود."
+    ),
+    HEROIN(
+        "هروئین",
+        "برنامه هروئین",
+        null,
+        "هر شکل و هر مقدار: از روز نخست با روزانه ۶ سی‌سی OT شروع می‌شود؛ سقف ۱۰٫۵ سی‌سی."
+    ),
+    ALCOHOL(
+        "الکل",
+        "تیپر ۶۱ روزه الکل + متد شیشه (سقف ۶cc)",
+        null,
+        "ابتدا الکل TDS و طی ۶۱ روز تیپر و قطع می‌شود؛ سپس OT مثل متد شیشه با سقف ۶ سی‌سی."
+    ),
+    STIMULANT(
+        "شیشه و محرک‌ها",
+        "جدول ۱۷ ردیفی محرک‌ها",
+        null,
+        "شیشه، حشیش، گل، ماری‌جوانا، کوکائین، قرص اکستازی و قرص B2: شروع با ۰٫۳ سی‌سی در روز و صعود پله‌به‌پله تا تثبیت ۴٫۵ سی‌سی."
+    ),
+    METHADONE(
+        "متادون",
+        "جایگزینی هفتگی وعده‌به‌وعده با OT",
+        "مصرف روزانه شربت متادون (سی‌سی)",
+        "قرص ۵ میلی‌گرمی = ۱ سی‌سی شربت متادون = ۱ سی‌سی شربت OT (۱۰mg = ۲cc و ۲۰mg = ۸cc)."
+    ),
+    TRAMADOL(
+        "ترامادول",
+        "مثل متادون — قرص ۱۰۰mg = ۱٫۵cc OT",
+        "تعداد قرص ۱۰۰ میلی‌گرمی در روز",
+        "هر قرص ۱۰۰ میلی‌گرمی = ۱٫۵ سی‌سی OT؛ قرص ۲۰۰ میلی‌گرمی = ۳ سی‌سی. اگر کمتر از ۶cc شد، تا ۶cc بالا می‌رود."
+    ),
+    SHIREH_ORAL(
+        "شیره خوراکی",
+        "محاسبه مثل تریاک خوراکی + جدول جایگزینی",
+        "میزان مصرف روزانه (گرم)",
+        "محاسبه مثل تریاک خوراکی؛ سپس هفته‌ای یک وعده (ظهر، صبح، شب) با OT جایگزین می‌شود."
+    )
+}
+
+/** وضعیت هر پله از برنامه */
+enum class StepKind(val label: String) {
+    START("شروع"),
+    BUILDUP("افزایش"),
+    STABILIZE("تثبیت"),
+    REDUCE("کاهش"),
+    FINAL("پله آخر")
+}
+
+/** یک پله از برنامه درمان (همه مقادیر بر حسب سی‌سی شربت اپیوم تینکچر) */
+data class PlanStep(
+    val title: String,
+    val kind: StepKind,
+    val dosesPerDay: Int,
+    val perDoseCc: Double,
+    val days: Int,
+    val note: String = ""
+) {
+    /** جمع مصرف روزانه در این پله */
+    val dailyCc: Double
+        get() = kotlin.math.round(perDoseCc * dosesPerDay * 100.0) / 100.0
+}
+
+/** برنامه شخصی کامل بر اساس نوع ماده و مقدار مصرف */
+data class PersonalPlan(
+    val substance: SubstanceType,
+    val steps: List<PlanStep>,
+    /** OT روزانه در پله اول برنامه */
+    val startDailyCc: Double,
+    /** سقف OT روزانه برای این برنامه */
+    val capDailyCc: Double,
+    val notes: List<String>
+) {
+    val totalDays: Int get() = steps.sumOf { it.days }
+}
+
+/**
+ * تنظیمات کاربر برای پروتکل درمان.
+ * واحد درمان: سی‌سی شربت اپیوم تینکچر (OT).
+ */
+data class UserSettings(
+    val startDateMillis: Long? = null,
+    val substance: SubstanceType = SubstanceType.OPIUM_SMOKED,
+    /** معنایش بسته به ماده: گرم (تریاک/شیره خوراکی)، سی‌سی (شربت متادون)، تعداد قرص (ترامادول) */
+    val consumption: Double = 0.0,
+    /** مدل ساعت وعده‌ها: ۱، ۲ یا ۳ (جدول «فاصله روزانه وعده‌ها» اصلاحیه) */
+    val doseModel: Int = 2
+)
+
+/**
+ * ثبت روزانه: نوبت‌های مصرف‌شده، حال عمومی و یادداشت.
+ */
+data class JournalEntry(
+    val id: String = "",
+    val dayMillis: Long = 0L,
+    val doseTaken: List<Boolean> = listOf(false, false, false),
+    val mood: Int = 2,
+    val note: String = ""
+)
