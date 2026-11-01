@@ -215,10 +215,10 @@ private fun startOfToday(): Long = Protocol.normalizeDay(System.currentTimeMilli
  */
 @Composable
 private fun OneLineQuote(text: String) {
-    var fontSize by remember(text) { mutableStateOf(15.sp) }
+    var fontSizeSp by remember(text) { mutableStateOf(15) }
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSize),
+        style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSizeSp.sp),
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
@@ -226,7 +226,7 @@ private fun OneLineQuote(text: String) {
         softWrap = false,
         modifier = Modifier.fillMaxWidth(),
         onTextLayout = { result ->
-            if (result.hasVisualOverflow && fontSize > 10.sp) fontSize = fontSize - 0.5.sp
+            if (result.hasVisualOverflow && fontSizeSp > 10) fontSizeSp = fontSizeSp - 1
         }
     )
 }
