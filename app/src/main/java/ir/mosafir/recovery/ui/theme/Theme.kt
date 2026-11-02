@@ -16,19 +16,20 @@ import ir.mosafir.recovery.R
 
 // ---------------------------------------------------------------
 // حالت‌های تم — انتخاب کاربر
-//   بنفش (بنفش واقعی) | ارغوانی | ارکیده | خاکستری آرام | خودکار
+//   نارنجی گرم (پیش‌فرض — سبک «پلنر من») | بنفش | ارغوانی | ارکیده | خاکستری آرام | خودکار
 // «خودکار» بر اساس روشن/تاریک بودن خود گوشی عوض می‌شود.
 // ---------------------------------------------------------------
 enum class ThemeMode(val labelFa: String, val swatch: Color, val followsSystem: Boolean = false) {
+    NARENJI("نارنجی گرم", Color(0xFFF97316)),
     BANAFSH("بنفش", Color(0xFF6A0DAD)),
     ARGHAVANI("ارغوانی", Color(0xFFA21CAF)),
     ORCHID("ارکیده", Color(0xFF9C3794)),
     KHAKESTARI("خاکستری آرام", Color(0xFF52525B)),
-    AUTO("خودکار", Color(0xFF6A0DAD), followsSystem = true);
+    AUTO("خودکار", Color(0xFFF97316), followsSystem = true);
 
     companion object {
         fun from(name: String?): ThemeMode =
-            entries.firstOrNull { it.name == name } ?: BANAFSH
+            entries.firstOrNull { it.name == name } ?: NARENJI
     }
 }
 
@@ -36,8 +37,8 @@ enum class ThemeMode(val labelFa: String, val swatch: Color, val followsSystem: 
 // رنگ‌های پویا — با هر تم عوض می‌شوند.
 // VioletPrimary در همهٔ کدهای قدیمی استفاده شده؛ حالا از تم فعلی می‌آید.
 // ---------------------------------------------------------------
-val LocalThemePrimary = staticCompositionLocalOf { Color(0xFF6A0DAD) }
-val LocalTopBarColor = staticCompositionLocalOf { Color(0xFF6A0DAD) }
+val LocalThemePrimary = staticCompositionLocalOf { Color(0xFFEA580C) }
+val LocalTopBarColor = staticCompositionLocalOf { Color(0xFFFFF9EC) }
 
 /** رنگ اصلی تم فعلی (تیترها، حاشیه کارت‌ها، نشان‌ها) */
 val VioletPrimary: Color @Composable get() = LocalThemePrimary.current
@@ -48,7 +49,48 @@ val AppTopBarColor: Color @Composable get() = LocalTopBarColor.current
 /** رنگ کهربایی (ثابت — با همهٔ تم‌ها سازگار است) */
 val AmberAccent = Color(0xFFF9A825)
 
+// ---------------------------------------------------------------
+// رنگ‌های سبک «پلنر من» — گرادیان هیرو و چیپ‌های رنگی نوار پایین
+// ---------------------------------------------------------------
+val HeroOrange = Color(0xFFF97316)
+val HeroPink = Color(0xFFEC4899)
+val NavTeal = Color(0xFF14B8A6)
+val NavViolet = Color(0xFF8B5CF6)
+val NavAmber = Color(0xFFF59E0B)
+val NavSlate = Color(0xFF64748B)
+
 private val SoftBackground = Color(0xFFF9F6FD)
+
+// ---------------------------------------------------------------
+// ۰) نارنجی گرم — پیش‌فرض، الهام‌گرفته از «پلنر من»
+//    پس‌زمینهٔ کرم + نارنجی اصلی + سطح سفید بدون حاشیه
+// ---------------------------------------------------------------
+private val NarenjiLight = lightColorScheme(
+    primary = Color(0xFFEA580C),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE8D4),
+    onPrimaryContainer = Color(0xFF7C2D12),
+    secondary = Color(0xFF0D9488),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFDCF3F0),
+    onSecondaryContainer = Color(0xFF0F3D38),
+    tertiary = AmberAccent,
+    onTertiary = Color(0xFF2B2000),
+    tertiaryContainer = Color(0xFFFFE9B8),
+    onTertiaryContainer = Color(0xFF4A3A00),
+    error = Color(0xFFB3261E),
+    onError = Color.White,
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+    background = Color(0xFFFFF9EC),
+    onBackground = Color(0xFF292524),
+    surface = Color.White,
+    onSurface = Color(0xFF292524),
+    surfaceVariant = Color(0xFFF7EFDD),
+    onSurfaceVariant = Color(0xFF78716C),
+    outline = Color(0xFFB8A88E),
+    outlineVariant = Color(0xFFEADFC8)
+)
 
 // ---------------------------------------------------------------
 // ۱) بنفش — بنفش واقعی و پرجان (نه یاسی)
@@ -237,24 +279,29 @@ private val AppTypography = withVazir()
  */
 @Composable
 fun MosafirTheme(
-    themeMode: ThemeMode = ThemeMode.BANAFSH,
+    themeMode: ThemeMode = ThemeMode.NARENJI,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
     val isDark = themeMode == ThemeMode.AUTO && systemDark
 
     val scheme = when (themeMode) {
+        ThemeMode.NARENJI -> NarenjiLight
         ThemeMode.BANAFSH -> BanafshLight
         ThemeMode.ARGHAVANI -> ArghavaniLight
         ThemeMode.ORCHID -> OrchidLight
         ThemeMode.KHAKESTARI -> KhakestariLight
-        ThemeMode.AUTO -> if (isDark) PurpleDark else BanafshLight
+        ThemeMode.AUTO -> if (isDark) PurpleDark else NarenjiLight
     }
 
     // رنگ تاکیدها: در تم‌های روشن = رنگ اصلی تم؛ در تم تاریک = بنفش روشن برای خوانایی
-    val accent = if (isDark) Color(0xFFD3B8FF) else scheme.primary
-    // رنگ نوار بالا: در تم تاریک، سطح تیره؛ در بقیه، رنگ اصلی تم
-    val topBar = if (isDark) Color(0xFF1A1721) else scheme.primary
+    val accent = if (isDark) Color(0xFFFFB68A) else scheme.primary
+    // رنگ نوار بالا: در تم تاریک، سطح تیره؛ در «نارنجی گرم»، کرم روشن (سبک پلنر من)؛ در بقیه، رنگ اصلی تم
+    val topBar = when {
+        isDark -> Color(0xFF1A1721)
+        themeMode == ThemeMode.NARENJI -> Color(0xFFFFF9EC)
+        else -> scheme.primary
+    }
 
     CompositionLocalProvider(
         LocalThemePrimary provides accent,

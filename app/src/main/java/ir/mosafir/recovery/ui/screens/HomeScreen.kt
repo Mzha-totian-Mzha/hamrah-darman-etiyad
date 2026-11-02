@@ -1,13 +1,37 @@
 package ir.mosafir.recovery.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Quiz
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,9 +58,14 @@ import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatDose
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.NoticeCard
+import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.SectionCard
-import ir.mosafir.recovery.ui.StatTile
 import ir.mosafir.recovery.ui.WeCanBadge
+import ir.mosafir.recovery.ui.theme.HeroOrange
+import ir.mosafir.recovery.ui.theme.HeroPink
+import ir.mosafir.recovery.ui.theme.NavAmber
+import ir.mosafir.recovery.ui.theme.NavTeal
+import ir.mosafir.recovery.ui.theme.NavViolet
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 import java.util.Calendar
 
@@ -45,11 +78,111 @@ private val QUOTES = listOf(
     "با ورزش، نظم و حضور در جلسات، سفرت را محکم‌تر کن."
 )
 
+/** چیپ گرد رنگی با آیکون — سبک «پلنر من» */
+@Composable
+private fun ChipIcon(color: Color, icon: ImageVector, chipSize: Int = 36, iconSize: Int = 19) {
+    Box(
+        modifier = Modifier
+            .size(chipSize.dp)
+            .background(color.copy(alpha = 0.15f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(iconSize.dp)
+        )
+    }
+}
+
+/** کارت آمار کوچک با چیپ رنگی — برای شبکهٔ ۲×۲ خانه */
+@Composable
+private fun StatCard(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ChipIcon(color, icon)
+            Spacer(Modifier.width(10.dp))
+            Column {
+                OneLineText(
+                    text = value,
+                    baseFontSize = 17,
+                    minFontSize = 9,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Start
+                )
+                OneLineText(
+                    text = label,
+                    baseFontSize = 11,
+                    minFontSize = 8,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Start
+                )
+            }
+        }
+    }
+}
+
+/** دکمهٔ شیشه‌ای داخل کارت گرادیانی هیرو */
+@Composable
+private fun HeroPill(
+    label: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.22f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(15.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
 @Composable
 fun HomeScreen(
     settings: UserSettings,
     entries: List<JournalEntry>,
-    onGoToSettings: () -> Unit
+    onGoToSettings: () -> Unit,
+    onGoToExam: () -> Unit,
+    onGoToJournal: () -> Unit
 ) {
     val plan = remember(settings) { Protocol.buildPlan(settings) }
     val now = remember { System.currentTimeMillis() }
@@ -71,6 +204,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // ۱) سلام + مُهر «ما می‌توانیم»
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -80,13 +214,13 @@ fun HomeScreen(
                 Column {
                     Text(
                         text = "سلام مسافر 👋",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = VioletPrimary
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
                         text = "امروز روز ${formatNumber(days + 1)} سفر توست",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -94,42 +228,126 @@ fun HomeScreen(
             }
         }
 
-        if (settings.startDateMillis == null) {
-            item {
-                SectionCard(title = "شروع سفر") {
-                    Text(
-                        text = "برای فعال شدن برنامه DST، اول نوع ماده مصرفی، تاریخ شروع و مقدار مصرف را در تنظیمات ثبت کن؛ پله‌های برنامه همان‌جا ساخته می‌شود.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Button(onClick = onGoToSettings) {
-                        Text("ثبت اطلاعات در تنظیمات")
+        // ۲) کارت گرادیانی هیرو — نارنجی → صورتی (سبک «پلنر من»)
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Brush.linearGradient(listOf(HeroOrange, HeroPink)))
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    if (settings.startDateMillis == null) {
+                        Text(
+                            text = "سفرت را شروع کن!",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "برای فعال شدن برنامه DST، اول نوع مادهٔ مصرفی، تاریخ شروع و مقدار مصرف را در تنظیمات ثبت کن.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.92f)
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        HeroPill(
+                            label = "ثبت اطلاعات در تنظیمات",
+                            icon = Icons.Outlined.Settings,
+                            onClick = onGoToSettings
+                        )
+                    } else {
+                        Text(
+                            text = "روز پاک من",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.92f)
+                        )
+                        Text(
+                            text = formatNumber(days + 1),
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "از رهایی تا رهایی — متد DST",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.92f)
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            HeroPill(
+                                label = "شروع آزمون",
+                                icon = Icons.Outlined.Quiz,
+                                modifier = Modifier.weight(1f),
+                                onClick = onGoToExam
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            HeroPill(
+                                label = "ثبت روزانه",
+                                icon = Icons.Outlined.EditNote,
+                                modifier = Modifier.weight(1f),
+                                onClick = onGoToJournal
+                            )
+                        }
                     }
                 }
             }
-        } else {
+        }
+
+        if (settings.startDateMillis != null) {
+            // ۳) شبکهٔ ۲×۲ کارت‌های آمار با چیپ‌های رنگی
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        label = "روز سفر",
+                        value = formatNumber(days + 1),
+                        icon = Icons.Outlined.CalendarMonth,
+                        color = HeroOrange,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        label = "پلهٔ جاری",
+                        value = step?.title ?: "پایان",
+                        icon = Icons.Outlined.Flag,
+                        color = NavTeal,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    StatCard(
+                        label = "هر وعده",
+                        value = if (step != null && step.perDoseCc > 0) "${formatDose(step.perDoseCc)}cc" else "—",
+                        icon = Icons.Outlined.WaterDrop,
+                        color = NavViolet,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        label = "پیشرفت سفر",
+                        value = progress?.let { "${formatNumber((it * 100).toInt())}٪" } ?: "—",
+                        icon = Icons.Outlined.TrendingUp,
+                        color = HeroPink,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            // ۴) وضعیت درمان — نوار پیشرفت + تاریخ شروع
             item {
                 SectionCard(title = "وضعیت درمان") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatTile(
-                            label = "روز سفر",
-                            value = formatNumber(days + 1),
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatTile(
-                            label = "پله جاری",
-                            value = step?.title ?: "پایان",
-                            modifier = Modifier.weight(1.4f)
-                        )
-                        StatTile(
-                            label = "هر وعده",
-                            value = if (step != null && step.perDoseCc > 0) "${formatDose(step.perDoseCc)}cc" else "—",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
                     if (progress != null) {
                         LinearProgressIndicator(
                             progress = { progress },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            color = VioletPrimary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Text(
                             text = "پیشرفت سفر: ${formatNumber((progress * 100).toInt())}٪ از کل ${formatNumber(plan.totalDays)} روز",
@@ -146,6 +364,7 @@ fun HomeScreen(
             }
 
             if (step != null) {
+                // ۵) نوبت‌های امروز
                 item {
                     SectionCard(title = "نوبت‌های امروز") {
                         for (i in 0 until step.dosesPerDay.coerceIn(1, 3)) {
@@ -157,17 +376,27 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = times.getOrElse(i) { "نوبت ${formatNumber(i + 1)}" },
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (done) Icons.Outlined.CheckCircle else Icons.Outlined.Schedule,
+                                        contentDescription = null,
+                                        tint = if (done) NavTeal else NavAmber,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = times.getOrElse(i) { "نوبت ${formatNumber(i + 1)}" },
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
                                 Text(
                                     text = if (done)
-                                        "✅ ${formatDose(step.perDoseCc)}cc مصرف شد"
+                                        "${formatDose(step.perDoseCc)}cc مصرف شد"
                                     else
-                                        "⏳ ${formatDose(step.perDoseCc)}cc باقی است",
+                                        "${formatDose(step.perDoseCc)}cc باقی است",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (done) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (done) NavTeal else VioletPrimary
                                 )
                             }
                         }
@@ -190,15 +419,53 @@ fun HomeScreen(
                     }
                 }
             }
+
+            // ۶) کارت دعوت به آزمون
+            item {
+                Card(
+                    onClick = onGoToExam,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ChipIcon(NavTeal, Icons.Outlined.Quiz, chipSize = 40, iconSize = 21)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "آزمون امروزت رو بده!",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "۱۰ سؤال — چند دقیقه بیشتر وقت نمی‌گیره",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Outlined.ChevronLeft,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
         }
 
+        // ۷) نقل‌قول همیشه یک‌خطی
         item {
             SectionCard {
-                // نقل‌قول (مثل «با ورزش، نظم و حضور در جلسات…») همیشه در یک خط
                 OneLineQuote(text = "«$quote»")
             }
         }
 
+        // ۸) یادآوری
         item {
             NoticeCard(
                 text = "این برنامه همراه آموزشی است و به‌هیچ‌وجه جایگزین راهنما، لژیون و نظر پزشک نیست. هر تغییری در پله‌ها فقط با هماهنگی راهنمای خود انجام بده."

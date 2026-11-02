@@ -3,8 +3,14 @@ package ir.mosafir.recovery.ui
 import android.app.Activity
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -20,11 +26,10 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,9 +41,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -59,18 +66,26 @@ import ir.mosafir.recovery.ui.screens.ProtocolScreen
 import ir.mosafir.recovery.ui.screens.SettingsScreen
 import ir.mosafir.recovery.ui.theme.AppTopBarColor
 import ir.mosafir.recovery.ui.theme.MosafirTheme
+import ir.mosafir.recovery.ui.theme.NavAmber
+import ir.mosafir.recovery.ui.theme.NavSlate
+import ir.mosafir.recovery.ui.theme.NavTeal
+import ir.mosafir.recovery.ui.theme.NavViolet
 import ir.mosafir.recovery.ui.theme.ThemeMode
+import ir.mosafir.recovery.ui.theme.HeroOrange
+import ir.mosafir.recovery.ui.theme.HeroPink
 
 /**
- * تب‌های پایین صفحه — آیکون‌های قبلی دست‌نخورده؛ فقط تب «امتحان» اضافه شده است.
+ * تب‌های پایین صفحه — سبک «پلنر من»: هر تب آیکونِ رنگی اختصاصی دارد.
+ * ترتیب: خانه | پروتکل | ثبت روزانه | آزمون | کتابخانه | تنظیمات
+ * (تب «آزمون» بین «ثبت روزانه» و «کتابخانه» — طبق توافق)
  */
-enum class Tab(val titleFa: String, val icon: ImageVector) {
-    HOME("خانه", Icons.Outlined.Home),
-    PLAN("پروتکل", Icons.Outlined.EventNote),
-    JOURNAL("ثبت روزانه", Icons.Outlined.EditNote),
-    LIBRARY("کتابخانه", Icons.Outlined.MenuBook),
-    EXAM("امتحان", Icons.Outlined.Quiz),
-    SETTINGS("تنظیمات", Icons.Outlined.Settings)
+enum class Tab(val titleFa: String, val icon: ImageVector, val tint: Color) {
+    HOME("خانه", Icons.Outlined.Home, HeroOrange),
+    PLAN("پروتکل", Icons.Outlined.EventNote, NavTeal),
+    JOURNAL("ثبت روزانه", Icons.Outlined.EditNote, NavViolet),
+    EXAM("آزمون", Icons.Outlined.Quiz, HeroPink),
+    LIBRARY("کتابخانه", Icons.Outlined.MenuBook, NavAmber),
+    SETTINGS("تنظیمات", Icons.Outlined.Settings, NavSlate)
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -102,15 +117,19 @@ fun AppRoot() {
         // رنگ نوار وضعیت گوشی هماهنگ با نوار بالا
         val view = LocalView.current
         val topBarColor = AppTopBarColor
+        // نوار وضعیت: روی نوارِ روشن آیکون‌های تیره، روی نوار تیره آیکون‌های روشن
+        val topBarIsLight = topBarColor.luminance() > 0.5f
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 @Suppress("DEPRECATION")
                 window.statusBarColor = topBarColor.toArgb()
                 androidx.core.view.WindowCompat.getInsetsController(window, view)
-                    .isAppearanceLightStatusBars = false
+                    .isAppearanceLightStatusBars = topBarIsLight
             }
         }
+
+        val topBarContent = if (topBarIsLight) Color(0xFF292524) else Color.White
 
         CompositionLocalProvider(
             LocalLayoutDirection provides LayoutDirection.Rtl
@@ -192,29 +211,63 @@ fun AppRoot() {
                             },
                             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                                 containerColor = AppTopBarColor,
-                                titleContentColor = Color.White,
-                                actionIconContentColor = Color.White,
-                                navigationIconContentColor = Color.White
+                                titleContentColor = topBarContent,
+                                actionIconContentColor = topBarContent,
+                                navigationIconContentColor = topBarContent
                             )
                         )
                     },
                     bottomBar = {
-                        NavigationBar {
-                            Tab.entries.forEach { t ->
-                                NavigationBarItem(
-                                    selected = tab == t,
-                                    onClick = { tab = t },
-                                    icon = { Icon(t.icon, contentDescription = t.titleFa) },
-                                    label = {
+                        // نوار پایین سبک «پلنر من» — هر تب آیکونِ رنگی خودش را دارد؛
+                        // تب فعال یک دایرهٔ ملایم رنگی پشت آیکون می‌گیرد.
+                        Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp, bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Tab.entries.forEach { t ->
+                                    val selected = tab == t
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) { tab = t },
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.size(34.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (selected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .background(t.tint.copy(alpha = 0.16f), CircleShape)
+                                                )
+                                            }
+                                            Icon(
+                                                imageVector = t.icon,
+                                                contentDescription = t.titleFa,
+                                                tint = t.tint,
+                                                modifier = Modifier.size(if (selected) 24.dp else 22.dp)
+                                            )
+                                        }
                                         Text(
-                                            t.titleFa,
+                                            text = t.titleFa,
                                             maxLines = 1,
                                             softWrap = false,
                                             overflow = TextOverflow.Visible,
-                                            style = MaterialTheme.typography.labelSmall
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selected) t.tint else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                )
+                                }
                             }
                         }
                     }
@@ -224,7 +277,9 @@ fun AppRoot() {
                             Tab.HOME -> HomeScreen(
                                 settings = settings,
                                 entries = entries,
-                                onGoToSettings = { tab = Tab.SETTINGS }
+                                onGoToSettings = { tab = Tab.SETTINGS },
+                                onGoToExam = { tab = Tab.EXAM },
+                                onGoToJournal = { tab = Tab.JOURNAL }
                             )
                             Tab.PLAN -> ProtocolScreen(settings = settings)
                             Tab.JOURNAL -> JournalScreen(

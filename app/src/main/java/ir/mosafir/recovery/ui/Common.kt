@@ -1,6 +1,5 @@
 package ir.mosafir.recovery.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -26,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.ui.theme.AmberAccent
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 
-/** کارت استاندارد بخش‌ها — با حاشیه پررنگ بنفش دور تا دور */
+/** کارت استاندارد بخش‌ها — سفید، خیلی‌گرد، سایهٔ نرم (بدون حاشیه) — سبک «پلنر من» */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
@@ -35,10 +34,9 @@ fun SectionCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.5.dp, VioletPrimary.copy(alpha = 0.40f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -57,14 +55,14 @@ fun SectionCard(
     }
 }
 
-/** کاشی آمار (عدد + برچسب) — با حاشیه پررنگ؛ مقدار و برچسب همیشه «یک‌خطی» */
+/** کاشی آمار (عدد + برچسب) — سفید و سایه‌دار؛ مقدار و برچسب همیشه «یک‌خطی» */
 @Composable
 fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        border = BorderStroke(1.dp, VioletPrimary.copy(alpha = 0.30f))
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp).fillMaxWidth(),
@@ -126,14 +124,14 @@ fun OneLineText(
     )
 }
 
-/** بنر یادآوری/توضیح با پس‌زمینه کهربایی — با حاشیه پررنگ */
+/** بنر یادآوری/توضیح با پس‌زمینه کهربایی — گرد و بدون حاشیه */
 @Composable
 fun NoticeCard(text: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-        border = BorderStroke(1.dp, AmberAccent.copy(alpha = 0.55f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
