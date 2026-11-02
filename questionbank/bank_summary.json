@@ -1,0 +1,22 @@
+{
+ "mcq": 1780,
+ "mcq_complete_opts": 1338,
+ "mcq_answer_attached": 59,
+ "mcq_needs_review": 479,
+ "qa": 3054,
+ "qa_with_answer": 2801,
+ "qa_needs_review": 400,
+ "duplicates_removed": 636,
+ "total_unique": 4834,
+ "by_category": {
+  "۱۴ مقاله": 1932,
+  "۱۴ وادی عشق": 1129,
+  "آزمون عمومی": 890,
+  "آزمون همسفران": 333,
+  "راهنما و راهنمایی": 283,
+  "۶۰ درجه": 133,
+  "جهان‌بینی": 68,
+  "پروتکل DST": 46,
+  "شرح وظایف": 20
+ }
+}
