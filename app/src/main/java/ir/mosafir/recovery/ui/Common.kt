@@ -103,7 +103,9 @@ fun OneLineText(
     minFontSize: Int,
     style: androidx.compose.ui.text.TextStyle,
     fontWeight: FontWeight? = null,
-    color: androidx.compose.ui.graphics.Color
+    color: androidx.compose.ui.graphics.Color,
+    textAlign: TextAlign = TextAlign.Center,
+    modifier: Modifier = Modifier
 ) {
     var fontSize by remember(text) { mutableStateOf(baseFontSize) }
     Text(
@@ -114,10 +116,10 @@ fun OneLineText(
         ),
         fontWeight = fontWeight,
         color = color,
-        textAlign = TextAlign.Center,
+        textAlign = textAlign,
         maxLines = 1,
         softWrap = false,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         onTextLayout = { result ->
             if (result.hasVisualOverflow && fontSize > minFontSize) fontSize = fontSize - 1
         }

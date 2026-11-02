@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.data.PersianDate
@@ -46,6 +47,7 @@ import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatDose
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.NoticeCard
+import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
 import ir.mosafir.recovery.ui.theme.VioletPrimary
@@ -129,14 +131,18 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard(title = "تاریخ شروع درمان") {
-                Text(
+            SectionCard {
+                // تاریخ شروع درمان همیشه در «یک خط» — متن پایین به متن بالا می‌چسبد و ادامهٔ همان خط است
+                OneLineText(
                     text = if (settings.startDateMillis != null)
-                        "شروع سفر: ${PersianDate.formatLong(settings.startDateMillis!!)}"
-                    else "هنوز ثبت نشده است",
-                    style = MaterialTheme.typography.bodyLarge,
+                        "تاریخ شروع درمان: ${PersianDate.formatLong(settings.startDateMillis!!)}"
+                    else "تاریخ شروع درمان: هنوز ثبت نشده است",
+                    baseFontSize = 15,
+                    minFontSize = 9,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = VioletPrimary
+                    color = VioletPrimary,
+                    textAlign = TextAlign.Start
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { showDatePicker = true }) {
@@ -305,7 +311,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۳٫۲ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۳٫۴ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

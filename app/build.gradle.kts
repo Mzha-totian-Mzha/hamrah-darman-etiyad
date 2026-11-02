@@ -12,8 +12,8 @@ android {
         applicationId = "ir.mosafir.recovery"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.3.2"
+        versionCode = 8
+        versionName = "1.3.4"
 
         vectorDrawables {
             useSupportLibrary = true

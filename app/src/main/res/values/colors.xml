@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="violet_700">#6750A4</color>
-    <color name="violet_500">#7E66B8</color>
-    <color name="violet_100">#E9DDFF</color>
-    <color name="ic_launcher_background">#6750A4</color>
+    <color name="violet_700">#6A0DAD</color>
+    <color name="violet_500">#7B1FA2</color>
+    <color name="violet_100">#F0E3FF</color>
+    <color name="ic_launcher_background">#3B81C1</color>
 </resources>
