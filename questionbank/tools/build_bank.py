@@ -24,8 +24,51 @@ from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 
 RAW = "/home/z/my-project/data/questionbank/raw"
+KEYS = "/home/z/my-project/data/questionbank/answer_keys.json"
 OUT_BANK = "/home/z/my-project/data/questionbank/bank.json"
 OUT_SUM = "/home/z/my-project/data/questionbank/bank_summary.json"
+
+# کلیدهای دایره‌کشی‌شدهٔ رمزگشایی‌شده: {"exam01": {"1": "ب", ...}} — کلیدها به رقم لاتین
+def _latin(v: str) -> str:
+    return v.translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789"))
+
+try:
+    DECODED = {k: {_latin(n): l for n, l in v.items()} for k, v in json.load(io.open(KEYS, encoding="utf-8")).items()}
+except FileNotFoundError:
+    DECODED = {}
+
+# متنِ هر شماره در پاسخ‌نامه — برای حل ابهام شماره‌های معکوسِ استخراج
+try:
+    DECODED_TEXT = {k: {_latin(n): t for n, t in v.items()} for k, v in json.load(io.open(KEYS.replace("answer_keys.json", "answer_keys_text.json"), encoding="utf-8")).items()}
+except FileNotFoundError:
+    DECODED_TEXT = {}
+
+def _wordrev(s: str) -> str:
+    return " ".join(s.split()[::-1])
+
+def _pick_key_number(q: str, n, decoded: dict, snips: dict):
+    """با کاندیدهای شماره (اصلی/معکوس دو رقمی/ضربدر ۱۰) بهترین تطبیق متنی را برمی‌گزیند."""
+    if n is None:
+        return None
+    s = str(n)
+    cands = [s]
+    if len(s) == 2 and s[0] != s[1]:
+        cands.append(s[::-1])
+    if len(s) == 1 and (s + "0") in decoded:
+        cands.append(s + "0")
+    best, best_r = None, 0.0
+    for c in cands:
+        if c not in decoded:
+            continue
+        snip = snips.get(c, "")
+        if not snip:
+            best = best or c
+            continue
+        r = max(SequenceMatcher(None, q[:120], snip[:120]).ratio(),
+                SequenceMatcher(None, q[:120], _wordrev(snip)[:120]).ratio())
+        if r > best_r:
+            best, best_r = c, r
+    return best if best and (best_r >= 0.42 or not snips) else best
 
 # ---------------------------------------------------------------- نرمال‌سازی
 
@@ -55,11 +98,19 @@ COMMON_WORDS = set(
     ارزش وجودی سازندگی صلح تاریکی تاریکیت روشنایی روشناییتی هدایت پاداش جسم روان جهان‌بینی worldwide""".split()
 )
 
+# واژه‌نمای پربسامد (≥۸ تکرار در متون سالم بانک) — برای امتیازدهی و کشف وارونگی جزئی
+_VOCAB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vocab_fa.json")
+try:
+    with io.open(_VOCAB_FILE, encoding="utf-8") as _vf:
+        VOCAB = COMMON_WORDS | set(json.load(_vf))
+except Exception:
+    VOCAB = COMMON_WORDS
+
 def score(t: str) -> float:
     words = re.findall(r"[\u0600-\u06FF\u200c]+", t)
     if not words:
         return 0.0
-    hit = sum(1 for w in words if w.strip("\u200c") in COMMON_WORDS)
+    hit = sum(1 for w in words if w.strip("\u200c") in VOCAB)
     return hit / len(words)
 
 SENT_SPLIT = re.compile(r"(?<=[.؟!؛])\s+")
@@ -154,20 +205,38 @@ def quality_of(*texts: str) -> str:
     # متنِ کاملاً معکوس: امتیازِ وارونه‌اش بهتر از خودش باشد
     if len(joined) > 30 and score(joined[::-1]) > score(joined) + 0.05:
         return "review"
-    # توکن‌های نشانهٔ سطر معکوس (است/می/شد/ها/بِه/ند… وارونه)
-    toks = re.findall(r"[\u0600-\u06FF]+", joined)
-    hits = sum(1 for w in toks if w in {"هب", "دنن", "تسا", "یم", "دوجو", "دش", "اه", "نامیا", "دشر"})
+    # توکن‌های نشانهٔ سطر معکوس (است/می/شد/ها/بِه/ند… وارونه) — سجاوندی فارسی هم جدا شود
+    toks = re.findall(r"[\u0600-\u06FF\u200c]+", re.sub(r"[\u060C\u061B،؛,;]", " ", joined))
+    hits = sum(1 for w in toks if w in {"هب", "دنن", "تسا", "یم", "دوجو", "دش", "اه", "نامیا", "دشر", "دنچ", "هاگ", "ناج"})
     if hits >= 2:
         return "review"
+    # وارونگی جزئی (بخشی از سطر وارونه و بخشی سالم): واژه‌هایی که خودشان واژهٔ
+    # متداول نیستند اما وارونهٔ حداقل‌۴حرفی‌شان هست — ≥۲ مورد با نرخ ≥۰٫۱۵
+    bad = checked = 0
+    for w in toks:
+        w = w.strip("\u200c")
+        if len(w) < 4:
+            continue
+        checked += 1
+        if w not in VOCAB and w[::-1] in VOCAB:
+            bad += 1
+    if bad >= 2 and checked and bad / checked >= 0.15:
+        return "review"
+    # وارونگی در سطح قطعه: جملهٔ وارونهٔ وسط متنِ عمدتاً سالم
+    for seg in re.split(r"[؟!.؛]\s*", joined):
+        if len(seg) > 25 and score(seg) < 0.30 and score(seg[::-1]) > score(seg) + 0.05:
+            return "review"
     return "ok"
 
 def quality_q(q: str) -> str:
-    """برای پرسش: علامت «؟» نباید در ابتدای متن باشد (نشانهٔ سطر معکوس)."""
+    """برای پرسش: علامت «؟» در ابتدای/سهٔ اولِ متن نشانهٔ سطر معکوس است."""
     base = quality_of(q)
     if base == "review":
         return base
     i = q.find("؟")
     if i != -1 and len(q) > 40 and i < 0.3 * len(q):
+        return "review"
+    if i != -1 and len(q) > 18 and i <= 2:
         return "review"
     return "ok"
 
@@ -286,10 +355,12 @@ def main() -> None:
                 if base == stem or base in stem or stem in base:
                     keymap = amap
                     break
+            # کلیدهای رمزگشایی‌شده از دایره‌های پاسخ‌نامه (decode_answer_keys.py) — منبع قطعی
+            decoded = DECODED.get(stem, {})
             # اتصال فقط وقتی امن است که شماره‌های پاسخ‌نامه دقیقاً ۱..N برابر تعداد سؤال‌ها باشند
             # و اکثر مقادیر حرفِ تنها باشند (وگرنه شماره‌گذاری «بخشی» است و حرف اشتباه می‌چسبد)
             aligned = False
-            if keymap:
+            if keymap and not decoded:
                 try:
                     keys = sorted(int(k) for k in keymap)
                 except ValueError:
@@ -315,12 +386,16 @@ def main() -> None:
                     "refs": refs, "src": fname, "cat": category_of(fname, q),
                     "quality": qual,
                 }
-                if keymap and n is not None and str(n) in keymap:
+                if stem in DECODED and len(opts) >= 2:
+                    # کلید دایره‌کشی‌شده — شمارهٔ درست با تطبیق متن سؤال انتخاب می‌شود
+                    # (شماره‌های دومرحله‌ایِ استخراج خام گاهی معکوس‌اند: ۲۱↔۱۲)
+                    snips = DECODED_TEXT.get(stem, {})
+                    kn = _pick_key_number(q, n, DECODED[stem], snips)
+                    if kn:
+                        entry["ans"] = DECODED[stem][kn]
+                elif keymap and aligned and n is not None and str(n) in keymap and len(opts) >= 2:
                     letter, atext = parse_answer_value(str(keymap[str(n)]), opts)
-                    if len(opts) >= 2:
-                        entry["ans"], entry["ans_text"] = letter, atext
-                    else:
-                        entry["ans_text"] = atext  # سؤال بدون گزینه: فقط متن پاسخ
+                    entry["ans"] = letter
                 k = dedup_key(q)
                 if k in seen:
                     dup_count += 1
