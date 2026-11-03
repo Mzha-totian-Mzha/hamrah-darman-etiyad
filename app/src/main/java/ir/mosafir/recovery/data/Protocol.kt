@@ -102,6 +102,7 @@ object Protocol {
 
     fun buildPlan(settings: UserSettings): PersonalPlan = when (settings.substance) {
         SubstanceType.OPIUM_SMOKED -> plan356()
+        SubstanceType.SOKHTE -> plan356()
         SubstanceType.OPIUM_ORAL -> planOralOpium(settings.consumption)
         SubstanceType.HEROIN -> planHeroin()
         SubstanceType.STIMULANT -> planStimulant()
@@ -109,6 +110,8 @@ object Protocol {
         SubstanceType.TRAMADOL -> planTramadol(settings.consumption)
         SubstanceType.SHIREH_ORAL -> planShirehOral(settings.consumption)
         SubstanceType.ALCOHOL -> planAlcohol()
+        SubstanceType.SLEEPING -> planGuidance(SubstanceType.SLEEPING)
+        SubstanceType.OTHER -> planGuidance(SubstanceType.OTHER)
     }
 
     /** ۱) تریاک کشیدنی، شیره کشیدنی و کرک — «برنامه ۶–۳» اصلاحیه (بخش ۱) */
@@ -139,7 +142,7 @@ object Protocol {
             capDailyCc = 7.5,
             notes = listOf(
                 "برنامه ۶–۳ اصلاحیه ۱۳۹۸: شروع با هر وعده ۱cc، دو برابر کردن پس از ۳ روز، صعود تا سقف ۷٫۵cc و پس از ۲۲ روز توقف، کاهش طبق جدول.",
-                "مصرف کشیدنی بلافاصله قطع و همزمان OT شروع می‌شود؛ برای تریاک و شیره کشیدنی به هر مقدار و هر شیوه و همچنین کرک همین برنامه اجرا می‌شود."
+                "مصرف کشیدنی بلافاصله قطع و همزمان OT شروع می‌شود؛ برای تریاک، شیره کشیدنی، سوخته و کرک به هر مقدار و هر شیوه همین برنامه اجرا می‌شود."
             )
         )
     }
@@ -309,10 +312,34 @@ object Protocol {
         }
     }
 
-    /** ۶) ترامادول — «دقیقاً مانند پروتکل متادون»؛ هر قرص ۱۰۰mg = ۱٫۵cc OT (اصلاحیه بخش ۶) */
+    /** برنامهٔ راهنمایی برای موادی که جدول مستقل ندارند (خواب‌آور/سایر) — بدون دوز خودکار */
+    private fun planGuidance(substance: SubstanceType): PersonalPlan {
+        val isSleep = substance == SubstanceType.SLEEPING
+        return PersonalPlan(
+            substance,
+            listOf(
+                PlanStep(
+                    "برنامه‌ریزی فقط با هماهنگی راهنما", StepKind.START, 3, 0.0, 1,
+                    if (isSleep)
+                        "برای قرص‌های خواب جدول محاسباتی مستقلی در متد DST ثبت نشده است؛ نوع دارو، مقدار و زمان‌بندی را فقط راهنمای تو تعیین می‌کند."
+                    else
+                        "برای این ماده برنامهٔ محاسباتی پیش‌فرضی وجود ندارد؛ نوع ماده و برنامهٔ درمان را فقط با هماهنگی راهنمای خودت ثبت کن."
+                )
+            ),
+            startDailyCc = 0.0, capDailyCc = 0.0,
+            notes = listOf(
+                if (isSleep)
+                    "«راهنما و راهنمایی»: قرص‌های خواب و آرام‌بخش هم روی سیستم ایکس اثر می‌گذارند (آنتی‌اکس)؛ درمان اعتیاد با جایگزینی این داروها نتیجه‌بخش نبوده است."
+                else
+                    "متد DST برای تریاک، شیره، سوخته، هروئین، متادون، ترامادول، الکل و محرک‌ها جدول دارد؛ بقیهٔ مواد فقط با دستور راهنما."
+            )
+        )
+    }
+
+    /** ۶) ترامادول — «دقیقاً مانند پروتکل متادون»؛ هر قرص ۱۰۰mg = ۰٫۵cc OT (پانویس اصلاحیهٔ بخش ۶ و جدول راهنما) */
     private fun planTramadol(pills: Double): PersonalPlan {
         val pillsCount = if (pills > 0.0) pills else 4.0
-        val computed = round2(pillsCount * 1.5) // قرص ۱۰۰mg = ۱٫۵cc ← قرص ۲۰۰mg = ۳cc
+        val computed = round2(pillsCount * 0.5) // قرص ۱۰۰mg = ۰٫۵cc ← قرص ۲۰۰mg = ۱cc
         val daily = computed.coerceIn(6.0, 16.5)
         val raised = computed < 6.0
         val per = round2(daily / 3.0)
@@ -339,7 +366,7 @@ object Protocol {
             SubstanceType.TRAMADOL, steps,
             startDailyCc = daily, capDailyCc = 16.5,
             notes = listOf(
-                "هر قرص ترامادول ۱۰۰ میلی‌گرمی = ۱٫۵cc شربت OT؛ بنابراین قرص ۲۰۰ میلی‌گرمی = ۳cc (اصلاحیه بخش ۶ و پانویس آن).",
+                "هر قرص ترامادول ۱۰۰ میلی‌گرمی = ۰٫۵cc شربت OT و قرص ۲۰۰ میلی‌گرمی = ۱cc (پانویس اصلاحیهٔ بخش ۶ و جدول «راهنما و راهنمایی»).",
                 "برنامه دقیقاً مانند متادون اجرا می‌شود (جایگزینی هفتگی وعده‌به‌وعده + ۲۲ روز تثبیت)." +
                     if (raised) " چون مقدار محاسبه‌شده کمتر از ۶cc بود، تا سقف ۶cc بالا برده می‌شود." else ""
             )

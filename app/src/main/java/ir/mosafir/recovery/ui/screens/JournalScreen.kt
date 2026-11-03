@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import ir.mosafir.recovery.ui.FabScrollEffect
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -60,8 +59,7 @@ fun JournalScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
-        FabScrollEffect(listState)
-        LazyColumn(
+            LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),

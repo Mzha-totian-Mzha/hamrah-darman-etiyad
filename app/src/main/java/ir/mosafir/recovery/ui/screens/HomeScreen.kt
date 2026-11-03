@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import ir.mosafir.recovery.ui.FabScrollEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -201,7 +200,6 @@ fun HomeScreen(
     }
 
     val listState = rememberLazyListState()
-    FabScrollEffect(listState)
 
     LazyColumn(
         state = listState,

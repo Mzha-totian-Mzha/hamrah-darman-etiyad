@@ -1,6 +1,7 @@
 package ir.mosafir.recovery.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,10 +19,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import ir.mosafir.recovery.ui.FabScrollEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -205,6 +213,162 @@ private fun FilterChips(
 }
 
 @OptIn(ExperimentalLayoutApi::class)
+/** ذخیره‌گاه سؤال‌های غلط — مبنای کارت «مرور اشتباه‌ها» */
+private object WrongStore {
+    private const val KEY = "wrong_json"
+
+    fun load(ctx: android.content.Context): List<QuizItem> {
+        return try {
+            val prefs = ctx.getSharedPreferences("mosafir_wrong", android.content.Context.MODE_PRIVATE)
+            val arr = org.json.JSONArray(prefs.getString(KEY, "[]") ?: "[]")
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val oa = o.optJSONArray("options") ?: return@mapNotNull null
+                val opts = (0 until oa.length()).map { oa.optString(it) }
+                QuizItem(
+                    o.optString("question"),
+                    opts,
+                    o.optInt("correctIndex"),
+                    o.optString("explanation"),
+                    o.optString("cat")
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun save(ctx: android.content.Context, items: List<QuizItem>) {
+        try {
+            val prefs = ctx.getSharedPreferences("mosafir_wrong", android.content.Context.MODE_PRIVATE)
+            val arr = org.json.JSONArray()
+            items.takeLast(120).forEach { q ->
+                val o = org.json.JSONObject()
+                o.put("question", q.question)
+                val oa = org.json.JSONArray()
+                q.options.forEach { oa.put(it) }
+                o.put("options", oa)
+                o.put("correctIndex", q.correctIndex)
+                o.put("explanation", q.explanation)
+                o.put("cat", q.cat)
+                arr.put(o)
+            }
+            prefs.edit().putString(KEY, arr.toString()).apply()
+        } catch (e: Exception) {
+            /* بی‌صدا */
+        }
+    }
+}
+
+/** پنج کارت اصلی صفحهٔ شروع آزمون — طرح مصوب «عکس خوب» + حفظ امکانات فعلی */
+private const val QUIZ_LENS_MAX = 100
+private data class ExamCardDef(
+    val id: String,
+    val title: String,
+    val sub: String,
+    val icon: ImageVector,
+    val color: Color
+)
+
+@Composable
+private fun QuizLenChips(selected: Int, accent: Color, onPick: (Int) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+    ) {
+        listOf(10, 20, 30, 40, 50, 60, 70, 100).forEach { n ->
+            val on = selected == n
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (on) accent.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, if (on) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                modifier = Modifier.clickable { onPick(n) }
+            ) {
+                Text(
+                    text = formatNumber(n),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    color = if (on) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExamStartCard(
+    title: String,
+    sub: String,
+    icon: ImageVector,
+    color: Color,
+    selected: Boolean,
+    badge: Int?,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = if (selected) color.copy(alpha = 0.05f) else MaterialTheme.colorScheme.surface,
+            border = BorderStroke(
+                if (selected) 1.75.dp else 1.25.dp,
+                if (selected) color else MaterialTheme.colorScheme.outlineVariant
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+        ) {
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (selected) color else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = sub,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(color.copy(alpha = 0.12f), CircleShape)
+                ) {
+                    Icon(icon, contentDescription = title, tint = color, modifier = Modifier.size(21.dp))
+                    if (badge != null && badge > 0) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-7).dp)
+                                .size(18.dp)
+                                .background(color, CircleShape)
+                        ) {
+                            Text(
+                                text = formatNumber(badge),
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (selected) content()
+    }
+}
+
 @Composable
 fun ExamScreen() {
     val context = LocalContext.current
@@ -234,18 +398,51 @@ fun ExamScreen() {
     var quizCats by remember { mutableStateOf(setOf<String>()) }
     var flashCats by remember { mutableStateOf(setOf<String>()) }
 
+    // ————— کارت شروع (طرح ۵ کارت) + ذخیره‌گاه غلط‌ها
+    var startCard by remember { mutableStateOf<String?>(null) }
+    var isReview by remember { mutableStateOf(false) }
+    var reviewEmpty by remember { mutableStateOf(false) }
+    var wrongCount by remember { mutableStateOf(WrongStore.load(context).size) }
+
     val quizCatOptions = remember { listOf(CORE_CAT) + bank.mcqCats }
     val flashCatOptions = remember { bank.qaCats }
 
-    fun startQuiz() {
-        val core = if (quizCats.isEmpty() || CORE_CAT in quizCats) CORE_DST else emptyList()
+    fun startQuiz(review: Boolean = false, len: Int = quizLen, cats: Set<String> = quizCats) {
+        if (review) {
+            val stored = WrongStore.load(context)
+            if (stored.isEmpty()) {
+                reviewEmpty = true
+                return
+            }
+            reviewEmpty = false
+            isReview = true
+            quizList = stored.shuffled(Random(System.nanoTime()))
+            qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
+            phase = "running"
+            return
+        }
+        isReview = false
+        val core = if (cats.isEmpty() || CORE_CAT in cats) CORE_DST else emptyList()
         val fromBank = bank.mcq
-            .filter { quizCats.isEmpty() || it.cat in quizCats }
+            .filter { cats.isEmpty() || it.cat in cats }
             .map { it.toQuizItem() }
         val pool = (core + fromBank).shuffled(Random(System.nanoTime()))
-        quizList = pool.take(quizLen.coerceAtMost(pool.size))
+        quizList = pool.take(len.coerceAtMost(pool.size))
         qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
         phase = "running"
+    }
+
+    /** ذخیرهٔ سؤال‌های غلط — در حالت مرور، فقط غلط‌های دوباره باقی می‌مانند */
+    fun recordWrongs() {
+        val wrongItems = history.filter { it.chosenIndex != it.question.correctIndex }.map { it.question }
+        if (isReview) {
+            WrongStore.save(context, wrongItems)
+        } else {
+            val merged = WrongStore.load(context).toMutableList()
+            wrongItems.forEach { w -> if (merged.none { it.question == w.question }) merged.add(w) }
+            WrongStore.save(context, merged)
+        }
+        wrongCount = WrongStore.load(context).size
     }
 
     fun startFlash() {
@@ -257,7 +454,6 @@ fun ExamScreen() {
     }
 
     val listState = rememberLazyListState()
-    FabScrollEffect(listState)
 
     LazyColumn(
         state = listState,
@@ -275,159 +471,185 @@ fun ExamScreen() {
 
         when (phase) {
             "start" -> {
-                item {
-                    SectionCard {
-                        // انتخاب حالت
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (mode == "quiz") HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.25.dp, if (mode == "quiz") HeroPink else MaterialTheme.colorScheme.outline),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { mode = "quiz" }
-                            ) {
-                                Text(
-                                    text = "🎯 آزمون تستی",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (mode == "quiz") HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 10.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
+                val cards = listOf(
+                    ExamCardDef("term", "آزمون ترم", "۱۰۰ سؤال · ۴۵ دقیقه — استاندارد جلسهٔ ترم", Icons.Outlined.Assignment, Color(0xFFF97316)),
+                    ExamCardDef("cat", "تمرین دسته‌ای", "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی", Icons.Outlined.Layers, Color(0xFF14B8A6)),
+                    ExamCardDef("quick", "آزمون سریع", "۵ سؤال — چند دقیقه وقت می‌برد", Icons.Outlined.Timer, Color(0xFFF59E0B)),
+                    ExamCardDef("review", "مرور اشتباه‌ها", "فقط سؤال‌هایی که غلط جواب دادی", Icons.Outlined.Refresh, Color(0xFFEC4899)),
+                    ExamCardDef("written", "تمرین تشریحی", "۲۲۷۰ سؤال با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین", Icons.Outlined.MenuBook, Color(0xFFE11D48))
+                )
+                cards.forEach { cd ->
+                    item(key = "card-" + cd.id) {
+                        ExamStartCard(
+                            title = cd.title,
+                            sub = cd.sub,
+                            icon = cd.icon,
+                            color = cd.color,
+                            selected = startCard == cd.id,
+                            badge = if (cd.id == "review") wrongCount else null,
+                            onClick = {
+                                startCard = if (startCard == cd.id) null else cd.id
+                                reviewEmpty = false
+                                mode = if (cd.id == "written") "flash" else "quiz"
+                                if (cd.id == "term") quizLen = 100
+                                if (cd.id == "cat" && quizLen > 50) quizLen = 20
                             }
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (mode == "flash") HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.25.dp, if (mode == "flash") HeroPink else MaterialTheme.colorScheme.outline),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { mode = "flash" }
-                            ) {
-                                Text(
-                                    text = "📖 تمرین تشریحی",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (mode == "flash") HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 10.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (mode == "quiz") {
-                    item {
-                        SectionCard(title = "آزمون تستی با کلید", accent = HeroPink) {
-                            Text(
-                                text = "${formatNumber(CORE_DST.size)} سؤال هستهٔ متد DST + ${formatNumber(bank.mcq.size)} سؤال تستیِ بانک با کلید تأییدشده. " +
-                                    "پاسخ درست بلافاصله با توضیح نشان داده می‌شود.",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "تعداد سؤال:",
-                                style = MaterialTheme.typography.labelLarge,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 10.dp)
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 6.dp)
-                            ) {
-                                listOf(10, 20, 30, 40, 50, 60, 70).forEach { n ->
-                                    val on = quizLen == n
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = if (on) HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                        border = BorderStroke(1.dp, if (on) HeroPink else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                                        modifier = Modifier.clickable { quizLen = n }
-                                    ) {
+                        ) {
+                            when (cd.id) {
+                                "term" -> {
+                                    SectionCard(title = "تنظیم آزمون ترم", accent = cd.color) {
                                         Text(
-                                            text = formatNumber(n),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (on) HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            text = "همهٔ منابع قاطی — مثل جلسهٔ ترم؛ ۱۰۰ سؤال استاندارد یا هر تعدادی که انتخاب کنی.",
+                                            style = MaterialTheme.typography.bodySmall
                                         )
+                                        Text(
+                                            text = "تعداد سؤال:",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 10.dp)
+                                        )
+                                        QuizLenChips(selected = quizLen, accent = cd.color, onPick = { quizLen = it })
+                                        Button(
+                                            onClick = { startQuiz(len = quizLen, cats = emptySet()) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = cd.color),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                        ) { Text("شروع آزمون ترم") }
+                                    }
+                                }
+                                "cat" -> {
+                                    SectionCard(title = "انتخاب منبع", accent = cd.color) {
+                                        FilterChips(
+                                            options = quizCatOptions,
+                                            selected = quizCats,
+                                            onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c },
+                                            accent = cd.color
+                                        )
+                                        Text(
+                                            text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 6.dp)
+                                        )
+                                        Text(
+                                            text = "تعداد سؤال:",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 10.dp)
+                                        )
+                                        QuizLenChips(selected = quizLen, accent = cd.color, onPick = { quizLen = it })
+                                        Button(
+                                            onClick = { startQuiz(len = quizLen, cats = quizCats) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = cd.color),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                        ) { Text("شروع تمرین دسته‌ای") }
+                                    }
+                                }
+                                "quick" -> {
+                                    SectionCard(accent = cd.color) {
+                                        Text(
+                                            text = "۵ سؤال از همهٔ منابع، بدون هیچ تنظیمی — برای وقتی که فقط چند دقیقه وقت داری.",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Button(
+                                            onClick = { startQuiz(len = 5, cats = emptySet()) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = cd.color),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                        ) { Text("شروع آزمون ۵ سؤالی") }
+                                    }
+                                }
+                                "review" -> {
+                                    SectionCard(accent = cd.color) {
+                                        if (wrongCount > 0) {
+                                            Text(
+                                                text = formatNumber(wrongCount) + " سؤال غلط ذخیره شده است؛ هر سؤالی که این‌جا درست جواب بدهی از فهرست مرور حذف می‌شود.",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Button(
+                                                onClick = { startQuiz(review = true) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = cd.color),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 8.dp)
+                                            ) { Text("شروع مرور اشتباه‌ها") }
+                                        } else {
+                                            Text(
+                                                text = "هنوز سؤال غلطی ذخیره نشده — اول یک آزمون بده؛ هر سؤالی که غلط جواب بدهی خودکار این‌جا ذخیره می‌شود تا دفعهٔ بعد بیشتر تکرارش کنی.",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                        if (reviewEmpty) {
+                                            Text(
+                                                text = "هنوز غلطی ذخیره نشده است.",
+                                                color = WrongRed,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(top = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                "written" -> {
+                                    SectionCard(title = "تمرین تشریحی", accent = cd.color) {
+                                        Text(
+                                            text = formatNumber(bank.qa.size) + " سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        FilterChips(
+                                            options = flashCatOptions,
+                                            selected = flashCats,
+                                            onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c },
+                                            accent = cd.color
+                                        )
+                                        Text(
+                                            text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 6.dp)
+                                        )
+                                        Button(
+                                            onClick = { startFlash() },
+                                            colors = ButtonDefaults.buttonColors(containerColor = cd.color),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                        ) { Text("شروع تمرین") }
                                     }
                                 }
                             }
                         }
                     }
-                    item {
-                        SectionCard(title = "دستهٔ منابع (اختیاری)", accent = HeroPink) {
-                            FilterChips(
-                                options = quizCatOptions,
-                                selected = quizCats,
-                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c },
-                                accent = HeroPink
-                            )
-                            Text(
-                                text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        }
-                    }
-                    item {
-                        Button(
-                            onClick = { startQuiz() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
-                        ) {
-                            Text("شروع آزمون")
-                        }
-                    }
-                } else {
-                    item {
-                        SectionCard(title = "تمرین با سؤال‌های تشریحی", accent = HeroPink) {
-                            Text(
-                                text = "${formatNumber(bank.qa.size)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… " +
-                                    "اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                    item {
-                        SectionCard(title = "دستهٔ منابع (اختیاری)", accent = HeroPink) {
-                            FilterChips(
-                                options = flashCatOptions,
-                                selected = flashCats,
-                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c },
-                                accent = HeroPink
-                            )
-                            Text(
-                                text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp)
-                            )
-                        }
-                    }
-                    item {
-                        Button(
-                            onClick = { startFlash() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
-                        ) {
-                            Text("شروع تمرین")
-                        }
-                    }
                 }
-
-                item {
-                    SectionCard {
+                item(key = "stats") {
+                    Text(
+                        text = formatNumber(bank.mcq.size) + " سؤال تستی کلیددار + " + formatNumber(CORE_DST.size) + " سؤال متد DST · " + formatNumber(bank.qa.size) + " سؤال تشریحی پاسخ‌دار",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                item(key = "info") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFFCE7F3),
+                        border = BorderStroke(1.dp, Color(0xFFF9A8D4)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
-                            text = "💡 نکته: پاسخ همهٔ سؤال‌های هسته در صفحهٔ «پروتکل» و بخش‌های آموزشی برنامه وجود دارد؛ اگر بخواهی می‌توانی اول مرور کنی.",
+                            text = "سؤال‌ها هر بار به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شوند؛ زیر هر سؤال برچسب منبع می‌آید (مثلاً «وادی هشتم») و چیزی که غلط جواب بدی دفعهٔ بعد بیشتر تکرار می‌شود.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF9D174D),
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
                 }
@@ -536,6 +758,7 @@ fun ExamScreen() {
                                             chosen = null
                                             answered = false
                                         } else {
+                                            recordWrongs()
                                             phase = "done"
                                         }
                                     },
@@ -575,7 +798,11 @@ fun ExamScreen() {
                 }
                 item {
                     OutlinedButton(
-                        onClick = { phase = "start" },
+                        onClick = {
+                            recordWrongs()
+                            phase = "start"
+                            startCard = null
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("پایان و بازگشت") }
                 }

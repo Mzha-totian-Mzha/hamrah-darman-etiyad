@@ -85,7 +85,7 @@ enum class Tab(val titleFa: String, val icon: ImageVector, val tint: Color) {
     JOURNAL("ثبت روزانه", Icons.Outlined.EditNote, NavViolet),
     EXAM("آزمون", Icons.Outlined.Quiz, HeroPink),
     LIBRARY("کتابخانه", Icons.Outlined.MenuBook, NavAmber),
-    SETTINGS("تنظیمات", Icons.Outlined.Settings, NavSlate)
+    SETTINGS("تنظیمات", Icons.Outlined.Settings, NavViolet)
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -298,8 +298,6 @@ fun AppRoot() {
                                 }
                             )
                         }
-                        // فلش سبز «برو پایین» — هر صفحهٔ بلند وضعیت اسکرول خودش را می‌فرستد
-                        FabBus.state?.let { st -> ScrollDownFab(st) }
                     }
                 }
             }
