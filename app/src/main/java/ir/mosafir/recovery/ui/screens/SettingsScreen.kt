@@ -355,7 +355,16 @@ fun SettingsScreen(
                             }
                         }
                         Text(
-                            text = settings.substance.consumptionHint,
+                            // توضیح پویا — با هر کلیک روی اعداد، متن دقیقاً معنی همان عدد انتخابی را می‌گوید (رفع باگ ثابت‌ماندن متن)
+                            text = settings.substance.consumptionDetail(settings.consumption),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+                            fontWeight = FontWeight.Medium,
+                            color = NavViolet,
+                            textAlign = TextAlign.Justify,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        Text(
+                            text = "قاعدهٔ کلی: ${settings.substance.consumptionHint}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Justify
@@ -424,7 +433,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۵٫۴ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۵٫۵ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Justify
