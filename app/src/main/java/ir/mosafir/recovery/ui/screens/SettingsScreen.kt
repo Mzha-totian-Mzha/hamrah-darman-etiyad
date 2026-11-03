@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -133,13 +134,13 @@ private fun SubstanceTile(
     index: Int,
     type: SubstanceType,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     val dot = SUBSTANCE_DOTS[type] ?: NavViolet
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (selected) dot.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface)
             .border(
@@ -252,6 +253,7 @@ fun SettingsScreen(
                                     index = rowIdx * 2 + colIdx,
                                     type = type,
                                     selected = settings.substance == type,
+                                    modifier = Modifier.weight(1f),
                                     onClick = {
                                         onSaveSettings(
                                             settings.copy(

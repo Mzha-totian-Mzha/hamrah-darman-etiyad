@@ -329,14 +329,15 @@ private val TRIANGLES: List<TriDef> = listOf(
 
 private const val MAX_HIST = 8
 private const val KEY_FEAT_HIST = "feat_hist"
+private const val MAX_FEAT_HIST = 12
 private const val KEY_VOICE_FEMALE = "voice_female"
 
 /** تاریخچهٔ موارد نمایش‌داده‌شده — تا هر بار محتوای تازه ببینیم */
 private fun readHist(prefs: SharedPreferences, key: String): List<String> =
     prefs.getString(key, null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
 
-private fun saveHist(prefs: SharedPreferences, key: String, id: String) {
-    val h = (listOf(id) + readHist(prefs, key).filter { it != id }).take(MAX_HIST)
+private fun saveHist(prefs: SharedPreferences, key: String, id: String, max: Int = MAX_HIST) {
+    val h = (listOf(id) + readHist(prefs, key).filter { it != id }).take(max)
     prefs.edit().putString(key, h.joinToString(",")).apply()
 }
 

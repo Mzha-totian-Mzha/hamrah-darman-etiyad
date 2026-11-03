@@ -1,7 +1,7 @@
 package ir.mosafir.recovery.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.offset
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -270,6 +270,7 @@ private data class ExamCardDef(
     val color: Color
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun QuizLenChips(selected: Int, accent: Color, onPick: (Int) -> Unit) {
     FlowRow(
