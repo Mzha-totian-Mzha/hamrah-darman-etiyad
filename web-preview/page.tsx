@@ -24,7 +24,6 @@ import {
   Settings as SettingsIcon,
   Trash2,
   TrendingUp,
-  ArrowDown,
   X,
   Droplet,
 } from "lucide-react";
@@ -2702,9 +2701,25 @@ function SettingsScreen(props: {
             );
           })}
         </div>
-        <p className="text-[12.5px] font-bold" style={{ color: NAV_COLORS.settings }}>
-          برنامه اجرایی: {sub.program}
-        </p>
+        {/* تأیید ثبت انتخاب — بلافاصله زیر همین لیست، در همان صفحه (طراحی مصوب) */}
+        <div
+          className="mt-3 flex items-center gap-2.5 rounded-xl p-2.5"
+          style={{ background: "#16A34A14", border: "1.5px solid #16A34A55" }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full" style={{ background: "#16A34A" }}>
+            <span className="text-[15px] font-bold text-white">✓</span>
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12.5px] font-bold" style={{ color: "#16A34A" }}>
+              ثبت شد — «{sub.label}» انتخاب و ذخیره شد
+            </p>
+            <p className="text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+              برنامه اجرایی: {sub.program}
+            </p>
+          </div>
+        </div>
       </SectionCard>
 
       {sub.consumptionLabel == null ? (
@@ -3134,15 +3149,18 @@ export default function Page() {
             })}
           </nav>
 
-          {/* فلش سبز «برو پایین» — کادر سبز عکس ۶؛ برای تب‌های بلندی که اسکرول لازم دارند */}
+          {/* فلش کوچک «برو پایین» — هم‌اندازه و هم‌موقعیت عکس ۶؛ رنگش = رنگ تبِ فعال */}
           {mounted && canScrollDown && (
             <button
-              onClick={() => document.getElementById("app-scroll")?.scrollTo({ top: 9e6, behavior: "smooth" })}
+              onClick={() => {
+                const el = document.getElementById("app-scroll");
+                el?.scrollBy({ top: el.clientHeight * 0.85, behavior: "smooth" });
+              }}
               aria-label="رفتن به پایین صفحه"
-              className="absolute bottom-[84px] left-1/2 z-20 grid h-11 w-11 -translate-x-1/2 place-items-center rounded-full border-2 shadow-lg transition-transform active:scale-90"
-              style={{ background: c.surface, borderColor: "#2E7D32", color: "#2E7D32" }}
+              className="absolute bottom-[78px] left-1/2 z-20 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full shadow-md transition-transform active:scale-90"
+              style={{ background: `${NAV_COLORS[tab]}12`, border: `1.5px solid ${NAV_COLORS[tab]}`, color: NAV_COLORS[tab], backdropFilter: "blur(3px)" }}
             >
-              <ArrowDown size={22} strokeWidth={2.6} />
+              <ChevronDown size={17} strokeWidth={2.4} />
             </button>
           )}
         </div>
