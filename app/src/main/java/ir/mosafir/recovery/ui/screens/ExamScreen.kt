@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,114 +34,226 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ir.mosafir.recovery.data.BankMcq
+import ir.mosafir.recovery.data.BankQa
+import ir.mosafir.recovery.data.QuestionBank
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
 import ir.mosafir.recovery.ui.WeCanBadge
 import ir.mosafir.recovery.ui.theme.VioletPrimary
+import kotlin.random.Random
 
 /** رنگ‌های بازخورد درست/غلط */
 private val CorrectGreen = Color(0xFF2E7D32)
 private val WrongRed = Color(0xFFC62828)
 
-/** یک سؤال امتحان */
-private data class QuizQuestion(
+/** یک سؤال تستیِ یکپارچه (هستهٔ متد DST یا بانک) */
+private data class QuizItem(
     val question: String,
     val options: List<String>,
     val correctIndex: Int,
-    val explanation: String
+    val explanation: String,
+    val cat: String
 )
 
-/**
- * سؤال‌های امتحان — همه بر پایهٔ همین برنامه و اسناد مرجع:
- * «اصلاحیه پروتکل DST (۱۳۹۸/۳/۱)» و راهنمای ویرایش ۹۹ کنگره ۶۰.
- */
-private val QUIZ_QUESTIONS = listOf(
-    QuizQuestion(
+/** سؤال‌های هستهٔ متد DST — با توضیح آموزشی؛ همیشه در دسترس */
+private val CORE_DST: List<QuizItem> = listOf(
+    QuizItem(
         "در متد DST، حرف S به چه معناست؟",
         listOf("شروع درمان", "پله ۲۱ روزه", "سقف مصرف", "ثبت روزانه"),
         1,
-        "S = Step یعنی پله ۲۱ روزه؛ D ضریب ۰٫۸ و T حداقل ۱۰ ماه درمان است."
+        "S = Step یعنی پله ۲۱ روزه؛ D ضریب ۰٫۸ و T حداقل ۱۰ ماه درمان است.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "ضریب کاهش مصرف در هر پله متد DST چقدر است؟",
         listOf("۰٫۵", "۰٫۸", "۱٫۲", "۲"),
         1,
-        "در هر پله، مقدار مصرف در ضریب ۰٫۸ (D = Dezhakam) ضرب می‌شود."
+        "در هر پله، مقدار مصرف در ضریب ۰٫۸ (D = Dezhakam) ضرب می‌شود.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "فاصله وعده‌های مصرف در متد DST چند ساعت است؟",
         listOf("۶ ساعت", "۸ ساعت", "۱۲ ساعت", "۲۴ ساعت"),
         1,
-        "سه وعده با فاصله ۸ ساعت (مثلاً ۶ صبح، ۲ بعدازظهر و ۱۰ شب — مدل ۲)."
+        "سه وعده با فاصله ۸ ساعت (مثلاً ۶ صبح، ۲ بعدازظهر و ۱۰ شب — مدل ۲).",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "سقف OT در برنامه ۶–۳ چند سی‌سی در روز است؟",
         listOf("۶ سی‌سی", "۷٫۵ سی‌سی", "۹ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
-        "سقف برنامه ۶–۳: هر وعده ۲٫۵cc و روزانه ۷٫۵cc؛ سپس ۲۲ روز توقف روی سقف."
+        "سقف برنامه ۶–۳: هر وعده ۲٫۵cc و روزانه ۷٫۵cc؛ سپس ۲۲ روز توقف روی سقف.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "توقف تثبیت روی سقف مصرف طبق اصلاحیه چند روز است؟",
         listOf("۷ روز", "۱۴ روز", "۲۲ روز", "۳۰ روز"),
         2,
-        "عبارت اصلاحیه: «۲۲ روز یا دو پله» توقف روی سقف."
+        "عبارت اصلاحیه: «۲۲ روز یا دو پله» توقف روی سقف.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "هر ۱ سی‌سی شربت اپیوم تینکچر (OT) معادل چند میلی‌گرم تریاک خوراکی است؟",
         listOf("۵۰ میلی‌گرم", "۱۰۰ میلی‌گرم", "۲۰۰ میلی‌گرم", "۵۰۰ میلی‌گرم"),
         1,
-        "هر ۱cc OT = ۱۰۰ میلی‌گرم تریاک خوراکی؛ بنابراین ۱ گرم تریاک = ۱۰cc."
+        "هر ۱cc OT = ۱۰۰ میلی‌گرم تریاک خوراکی؛ بنابراین ۱ گرم تریاک = ۱۰cc.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "در برنامه ۶–۳ با مصرف کشیدنی چه باید کرد؟",
-        listOf(
-            "کاهش تدریجی مصرف کشیدنی",
-            "قطع همان شب هفته اول",
-            "قطع بلافاصله و شروع همزمان OT",
-            "فقط ثبت روزانه کافی است"
-        ),
+        listOf("کاهش تدریجی مصرف کشیدنی", "قطع همان شب هفته اول", "قطع بلافاصله و شروع همزمان OT", "فقط ثبت روزانه کافی است"),
         2,
-        "مصرف کشیدنی بلافاصله قطع و همزمان شربت OT شروع می‌شود."
+        "مصرف کشیدنی بلافاصله قطع و همزمان شربت OT شروع می‌شود.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "پله آخر برنامه (روزانه ۰٫۳cc) چند روز ادامه دارد؟",
         listOf("۳ روز", "۷ روز ثابت", "۲ تا ۲۱ روز", "۲۱ روز ثابت"),
         2,
-        "پله آخر طبق توضیح جدول، ۲ تا ۲۱ روز ادامه دارد و سپس با نظر راهنما قطع می‌شود."
+        "پله آخر طبق توضیح جدول، ۲ تا ۲۱ روز ادامه دارد و سپس با نظر راهنما قطع می‌شود.",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "سقف OT در درمان الکل چند سی‌سی در روز است؟",
         listOf("۴٫۵ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
-        "سقف OT در درمان الکل ۶ سی‌سی روزانه است (هر وعده ۲cc)."
+        "سقف OT در درمان الکل ۶ سی‌سی روزانه است (هر وعده ۲cc).",
+        "متد DST"
     ),
-    QuizQuestion(
+    QuizItem(
         "در درمان هروئین، شروع OT از روز نخست با روزانه چند سی‌سی است؟",
         listOf("۳ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
-        "اصلاحیه ۱۳۹۸: از روز نخست روزانه ۶cc (هر وعده ۲cc)؛ سقف برنامه ۱۰٫۵cc است."
+        "اصلاحیه ۱۳۹۸: از روز نخست روزانه ۶cc (هر وعده ۲cc)؛ سقف برنامه ۱۰٫۵cc است.",
+        "متد DST"
     )
 )
 
-/** سؤال‌های پاسخ‌داده‌شده برای مرور نهایی */
-private data class AnsweredQuestion(
-    val question: QuizQuestion,
-    val chosenIndex: Int
+private const val CORE_CAT = "متد DST"
+
+private fun BankMcq.toQuizItem(): QuizItem = QuizItem(
+    question = q,
+    options = opts,
+    correctIndex = ansIndex,
+    explanation = buildString {
+        append("پاسخ درست: ")
+        append(opts[ansIndex])
+        if (ref.isNotBlank()) {
+            append(" · ")
+            append(ref)
+        }
+        append(" · منبع: ")
+        append(cat)
+    },
+    cat = cat
 )
+
+/** سؤال‌های پاسخ‌داده‌شده برای مرور نهایی */
+private data class AnsweredQuestion(val question: QuizItem, val chosenIndex: Int)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterChips(
+    options: List<String>,
+    selected: Set<String>,
+    onToggle: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        options.forEach { c ->
+            val on = c in selected
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                modifier = Modifier.clickable { onToggle(c) }
+            ) {
+                Text(
+                    text = c,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                    color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+        if (selected.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.clickable { onClear() }
+            ) {
+                Text(
+                    text = "پاک‌کردن",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ExamScreen() {
+    val context = LocalContext.current
+    val bank = remember { QuestionBank.load(context) }
+
+    // mode: quiz = آزمون تستی | flash = تمرین تشریحی
+    var mode by remember { mutableStateOf("quiz") }
     var phase by remember { mutableStateOf("start") } // start | running | done
+
+    // ————— حالت آزمون تستی
+    var quizList by remember { mutableStateOf(listOf<QuizItem>()) }
     var qIndex by remember { mutableIntStateOf(0) }
     var chosen by remember { mutableStateOf<Int?>(null) }
     var answered by remember { mutableStateOf(false) }
     var score by remember { mutableIntStateOf(0) }
     var history by remember { mutableStateOf(listOf<AnsweredQuestion>()) }
+    var quizLen by remember { mutableIntStateOf(10) }
+
+    // ————— حالت تمرین تشریحی
+    var flashList by remember { mutableStateOf(listOf<BankQa>()) }
+    var fIndex by remember { mutableIntStateOf(0) }
+    var reveal by remember { mutableStateOf(false) }
+    var known by remember { mutableIntStateOf(0) }
+    var unknown by remember { mutableIntStateOf(0) }
+
+    // انتخاب دسته‌ها — خالی = همه
+    var quizCats by remember { mutableStateOf(setOf<String>()) }
+    var flashCats by remember { mutableStateOf(setOf<String>()) }
+
+    val quizCatOptions = remember { listOf(CORE_CAT) + bank.mcqCats }
+    val flashCatOptions = remember { bank.qaCats }
+
+    fun startQuiz() {
+        val core = if (quizCats.isEmpty() || CORE_CAT in quizCats) CORE_DST else emptyList()
+        val fromBank = bank.mcq
+            .filter { quizCats.isEmpty() || it.cat in quizCats }
+            .map { it.toQuizItem() }
+        val pool = (core + fromBank).shuffled(Random(System.nanoTime()))
+        quizList = pool.take(quizLen.coerceAtMost(pool.size))
+        qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
+        phase = "running"
+    }
+
+    fun startFlash() {
+        flashList = bank.qa
+            .filter { flashCats.isEmpty() || it.cat in flashCats }
+            .shuffled(Random(System.nanoTime()))
+        fIndex = 0; reveal = false; known = 0; unknown = 0
+        phase = "running"
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -149,36 +263,146 @@ fun ExamScreen() {
         item {
             ScreenHeader(
                 title = "امتحان",
-                subtitle = "سنجش آشنایی تو با متد DST و اصلاحیه پروتکل کنگره ۶۰"
+                subtitle = "آزمون تستی و تمرین تشریحی — از ده‌ها آزمون واقعی کنگره ۶۰"
             )
         }
 
         when (phase) {
             "start" -> {
                 item {
-                    SectionCard(title = "امتحان متد DST") {
-                        Text(
-                            text = "این امتحان ${formatNumber(QUIZ_QUESTIONS.size)} سؤال دارد و از همان مطالبی پرسیده می‌شود که در پروتکل و کتابخانهٔ برنامه آمده است. " +
-                                "پاسخ درست بلافاصله با توضیح کوتاه نشان داده می‌شود؛ پس نگران اشتباه نباش.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Button(onClick = {
-                                qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
-                                phase = "running"
-                            }) {
-                                Text("شروع امتحان")
+                    SectionCard {
+                        // انتخاب حالت
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (mode == "quiz") VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.25.dp, if (mode == "quiz") VioletPrimary else MaterialTheme.colorScheme.outline),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { mode = "quiz" }
+                            ) {
+                                Text(
+                                    text = "🎯 آزمون تستی",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (mode == "quiz") VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (mode == "flash") VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.25.dp, if (mode == "flash") VioletPrimary else MaterialTheme.colorScheme.outline),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { mode = "flash" }
+                            ) {
+                                Text(
+                                    text = "📖 تمرین تشریحی",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (mode == "flash") VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
                         }
                     }
                 }
+
+                if (mode == "quiz") {
+                    item {
+                        SectionCard(title = "امتحان تستی با کلید") {
+                            Text(
+                                text = "${formatNumber(CORE_DST.size)} سؤال هستهٔ متد DST + ${formatNumber(bank.mcq.size)} سؤال تستیِ بانک با کلید تأییدشده. " +
+                                    "پاسخ درست بلافاصله با توضیح نشان داده می‌شود.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "تعداد سؤال:",
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.padding(top = 10.dp)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                listOf(10, 20, 30).forEach { n ->
+                                    val on = quizLen == n
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                                        modifier = Modifier.clickable { quizLen = n }
+                                    ) {
+                                        Text(
+                                            text = formatNumber(n),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        SectionCard(title = "دستهٔ منابع (اختیاری)") {
+                            FilterChips(
+                                options = quizCatOptions,
+                                selected = quizCats,
+                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c },
+                                onClear = { quizCats = emptySet() }
+                            )
+                            Text(
+                                text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    }
+                    item {
+                        Button(onClick = { startQuiz() }, modifier = Modifier.fillMaxWidth()) {
+                            Text("شروع امتحان")
+                        }
+                    }
+                } else {
+                    item {
+                        SectionCard(title = "تمرین با سؤال‌های تشریحی") {
+                            Text(
+                                text = "${formatNumber(bank.qa.size)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… " +
+                                    "اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    item {
+                        SectionCard(title = "دستهٔ منابع (اختیاری)") {
+                            FilterChips(
+                                options = flashCatOptions,
+                                selected = flashCats,
+                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c },
+                                onClear = { flashCats = emptySet() }
+                            )
+                            Text(
+                                text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    }
+                    item {
+                        Button(onClick = { startFlash() }, modifier = Modifier.fillMaxWidth()) {
+                            Text("شروع تمرین")
+                        }
+                    }
+                }
+
                 item {
                     SectionCard {
                         Text(
-                            text = "💡 نکته: پاسخ همهٔ سؤال‌ها در صفحهٔ «پروتکل» و بخش‌های آموزشی برنامه وجود دارد؛ اگر بخواهی می‌توانی اول مرور کنی.",
+                            text = "💡 نکته: پاسخ همهٔ سؤال‌های هسته در صفحهٔ «پروتکل» و بخش‌های آموزشی برنامه وجود دارد؛ اگر بخواهی می‌توانی اول مرور کنی.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -186,13 +410,12 @@ fun ExamScreen() {
                 }
             }
 
-            "running" -> {
-                val q = QUIZ_QUESTIONS[qIndex]
+            "running" -> if (mode == "quiz") {
+                val q = quizList[qIndex]
                 item {
                     SectionCard {
-                        // پیشرفت امتحان — همیشه یک خط
                         OneLineText(
-                            text = "سؤال ${formatNumber(qIndex + 1)} از ${formatNumber(QUIZ_QUESTIONS.size)}",
+                            text = "سؤال ${formatNumber(qIndex + 1)} از ${formatNumber(quizList.size)}",
                             baseFontSize = 13,
                             minFontSize = 10,
                             style = MaterialTheme.typography.labelLarge,
@@ -200,8 +423,14 @@ fun ExamScreen() {
                             color = VioletPrimary
                         )
                         LinearProgressIndicator(
-                            progress = { (qIndex + 1).toFloat() / QUIZ_QUESTIONS.size.toFloat() },
+                            progress = { (qIndex + 1).toFloat() / quizList.size.toFloat() },
                             modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = q.cat,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp)
                         )
                     }
                 }
@@ -242,7 +471,7 @@ fun ExamScreen() {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "${i + 1}",
+                                            text = formatNumber(i + 1),
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Bold,
                                             color = if (isChosen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -263,7 +492,8 @@ fun ExamScreen() {
                                 text = if (wasRight) "✅ درست بود!" else "❌ پاسخ درست: ${q.options[q.correctIndex]}",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (wasRight) CorrectGreen else WrongRed
+                                color = if (wasRight) CorrectGreen else WrongRed,
+                                modifier = Modifier.padding(top = 8.dp)
                             )
                             Text(
                                 text = q.explanation,
@@ -275,7 +505,7 @@ fun ExamScreen() {
                                 horizontalArrangement = Arrangement.Center
                             ) {
                                 Button(onClick = {
-                                    if (qIndex + 1 < QUIZ_QUESTIONS.size) {
+                                    if (qIndex + 1 < quizList.size) {
                                         qIndex += 1
                                         chosen = null
                                         answered = false
@@ -284,10 +514,7 @@ fun ExamScreen() {
                                     }
                                 }) {
                                     Text(
-                                        if (qIndex + 1 < QUIZ_QUESTIONS.size)
-                                            "سؤال بعدی"
-                                        else
-                                            "دیدن نتیجه"
+                                        if (qIndex + 1 < quizList.size) "سؤال بعدی" else "دیدن نتیجه"
                                     )
                                 }
                             }
@@ -313,14 +540,130 @@ fun ExamScreen() {
                         }
                     }
                 }
+                item {
+                    OutlinedButton(
+                        onClick = { phase = "start" },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("پایان و بازگشت") }
+                }
+            } else {
+                val f = flashList.getOrNull(fIndex)
+                if (f == null) {
+                    item {
+                        SectionCard {
+                            Text("سؤالی در این دسته‌ها پیدا نشد؛ دسته‌های دیگری را انتخاب کن یا بانک را از منابع تازه به‌روز کن.")
+                            OutlinedButton(onClick = { phase = "start" }, modifier = Modifier.padding(top = 8.dp)) {
+                                Text("بازگشت")
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        SectionCard {
+                            OneLineText(
+                                text = "سؤال ${formatNumber(fIndex + 1)} از ${formatNumber(flashList.size)}",
+                                baseFontSize = 13,
+                                minFontSize = 10,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = VioletPrimary
+                            )
+                            LinearProgressIndicator(
+                                progress = { (fIndex + 1).toFloat() / flashList.size.toFloat() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = f.cat,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    }
+                    item {
+                        SectionCard(title = f.q) {
+                            if (reveal) {
+                                Surface(
+                                    color = CorrectGreen.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.25.dp, CorrectGreen.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = "پاسخ:",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = CorrectGreen
+                                        )
+                                        Text(
+                                            text = f.a,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (f.ref.isNotBlank()) {
+                                            Text(
+                                                text = f.ref,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            known += 1
+                                            if (fIndex + 1 < flashList.size) {
+                                                fIndex += 1; reveal = false
+                                            } else phase = "done"
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = CorrectGreen)
+                                    ) { Text("بلد بودم ✓") }
+                                    OutlinedButton(
+                                        onClick = {
+                                            unknown += 1
+                                            if (fIndex + 1 < flashList.size) {
+                                                fIndex += 1; reveal = false
+                                            } else phase = "done"
+                                        }
+                                    ) { Text("بلد نبودم ✗") }
+                                }
+                            } else {
+                                Button(onClick = { reveal = true }, modifier = Modifier.fillMaxWidth()) {
+                                    Text("نمایش پاسخ")
+                                }
+                            }
+                        }
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "✓ ${formatNumber(known)} · ✗ ${formatNumber(unknown)}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(top = 12.dp)
+                            )
+                            OutlinedButton(onClick = { phase = "done" }) { Text("پایان تمرین") }
+                        }
+                    }
+                }
             }
 
-            "done" -> {
+            "done" -> if (mode == "quiz") {
                 item {
                     SectionCard(title = "نتیجهٔ امتحان") {
-                        // نمرهٔ بزرگ — همیشه یک خط
                         OneLineText(
-                            text = "${formatNumber(score)} از ${formatNumber(QUIZ_QUESTIONS.size)} درست",
+                            text = "${formatNumber(score)} از ${formatNumber(quizList.size)} درست",
                             baseFontSize = 26,
                             minFontSize = 14,
                             style = MaterialTheme.typography.headlineMedium,
@@ -333,31 +676,24 @@ fun ExamScreen() {
                         ) {
                             WeCanBadge()
                         }
-                        val percent = (score * 100) / QUIZ_QUESTIONS.size
-                        Text(
-                            text = when {
-                                percent >= 90 -> "فوق‌العاده بود! آشنایی‌ات با متد DST عالی است. ما می‌توانیم ✋"
-                                percent >= 70 -> "خیلی خوب بود! یک مرور کوتاه روی جدول پروتکل، تو را کامل می‌کند."
-                                percent >= 50 -> "بد نبود؛ اما پیشنهاد می‌کنم صفحهٔ «پروتکل» را یک‌بار دیگر با دقت بخوانی."
-                                else -> "نگران نباش؛ هر مسافری اولش این‌جوری است. جزوه و صفحهٔ پروتکل را مرور کن و دوباره امتحان بده. ما می‌توانیم ✋"
-                            },
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        if (quizList.isNotEmpty()) {
+                            val percent = (score * 100) / quizList.size
+                            Text(
+                                text = when {
+                                    percent >= 90 -> "فوق‌العاده بود! آشنایی‌ات عالی است. ما می‌توانیم ✋"
+                                    percent >= 70 -> "خیلی خوب بود! یک مرور کوتاه روی جدول پروتکل، تو را کامل می‌کند."
+                                    percent >= 50 -> "بد نبود؛ اما پیشنهاد می‌کنم صفحهٔ «پروتکل» را یک‌بار دیگر با دقت بخوانی."
+                                    else -> "نگران نباش؛ هر مسافری اولش این‌جوری است. جزوه و صفحهٔ پروتکل را مرور کن و دوباره امتحان بده. ما می‌توانیم ✋"
+                                },
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                         ) {
-                            Button(onClick = {
-                                qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
-                                phase = "running"
-                            }) {
-                                Text("امتحان دوباره")
-                            }
-                            OutlinedButton(onClick = {
-                                phase = "start"
-                            }) {
-                                Text("صفحهٔ اول")
-                            }
+                            Button(onClick = { startQuiz() }) { Text("امتحان دوباره") }
+                            OutlinedButton(onClick = { phase = "start" }) { Text("صفحهٔ اول") }
                         }
                     }
                 }
@@ -389,6 +725,30 @@ fun ExamScreen() {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    SectionCard(title = "خلاصهٔ تمرین") {
+                        OneLineText(
+                            text = "✓ ${formatNumber(known)} بلد بودم · ✗ ${formatNumber(unknown)} بلد نبودم",
+                            baseFontSize = 20,
+                            minFontSize = 12,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = VioletPrimary
+                        )
+                        Text(
+                            text = "سؤال‌های «بلد نبودم» را در جلسهٔ بعدی تمرین، اول مرور کن؛ تکرار، کلید یادگیری است. ما می‌توانیم ✋",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                        ) {
+                            Button(onClick = { startFlash() }) { Text("تمرین دوباره") }
+                            OutlinedButton(onClick = { phase = "start" }) { Text("صفحهٔ اول") }
                         }
                     }
                 }
