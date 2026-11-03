@@ -66,7 +66,6 @@ import ir.mosafir.recovery.ui.theme.HeroPink
 import ir.mosafir.recovery.ui.theme.NavAmber
 import ir.mosafir.recovery.ui.theme.NavTeal
 import ir.mosafir.recovery.ui.theme.NavViolet
-import ir.mosafir.recovery.ui.theme.VioletPrimary
 import java.util.Calendar
 
 private val QUOTES = listOf(
@@ -341,12 +340,12 @@ fun HomeScreen(
 
             // ۴) وضعیت درمان — نوار پیشرفت + تاریخ شروع
             item {
-                SectionCard(title = "وضعیت درمان") {
+                SectionCard(title = "وضعیت درمان", accent = HeroOrange) {
                     if (progress != null) {
                         LinearProgressIndicator(
                             progress = { progress },
                             modifier = Modifier.fillMaxWidth(),
-                            color = VioletPrimary,
+                            color = HeroOrange,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Text(
@@ -366,7 +365,7 @@ fun HomeScreen(
             if (step != null) {
                 // ۵) نوبت‌های امروز
                 item {
-                    SectionCard(title = "نوبت‌های امروز") {
+                    SectionCard(title = "نوبت‌های امروز", accent = HeroOrange) {
                         for (i in 0 until step.dosesPerDay.coerceIn(1, 3)) {
                             val done = entries.firstOrNull { it.dayMillis == startOfToday() }
                                 ?.doseTaken
@@ -396,7 +395,7 @@ fun HomeScreen(
                                         "${formatDose(step.perDoseCc)}cc باقی است",
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (done) NavTeal else VioletPrimary
+                                    color = if (done) NavTeal else HeroOrange
                                 )
                             }
                         }
@@ -411,7 +410,7 @@ fun HomeScreen(
                 }
             } else {
                 item {
-                    SectionCard(title = "پایان برنامه") {
+                    SectionCard(title = "پایان برنامه", accent = HeroOrange) {
                         Text(
                             text = "همه پله‌های این برنامه طی شده است. طبق جزوه، پله آخر (۰٫۳cc در ۲۴ ساعت) ۲ تا ۲۱ روز ادامه دارد و پس از دیدن شرایط پله آخر، مصرف با نظر راهنما قطع می‌شود. خدا قوت — سفر دوم آغاز شد. 🌱",
                             style = MaterialTheme.typography.bodyMedium

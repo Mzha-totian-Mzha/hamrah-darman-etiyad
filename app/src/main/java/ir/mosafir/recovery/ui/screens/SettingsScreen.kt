@@ -50,7 +50,7 @@ import ir.mosafir.recovery.ui.NoticeCard
 import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
-import ir.mosafir.recovery.ui.theme.VioletPrimary
+import ir.mosafir.recovery.ui.theme.NavSlate
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -90,7 +90,7 @@ private fun ModelChip(
             )
             .border(
                 width = if (selected) 1.5.dp else 1.25.dp,
-                color = if (selected) VioletPrimary else MaterialTheme.colorScheme.outline,
+                color = if (selected) NavSlate else MaterialTheme.colorScheme.outline,
                 shape = RoundedCornerShape(50)
             )
             .clickable(onClick = onClick)
@@ -126,12 +126,13 @@ fun SettingsScreen(
         item {
             ScreenHeader(
                 title = "تنظیمات درمان",
-                subtitle = "نوع ماده و برنامه درمانی را فقط با هماهنگی راهنمای خود انتخاب کن"
+                subtitle = "نوع ماده و برنامه درمانی را فقط با هماهنگی راهنمای خود انتخاب کن",
+                accent = NavSlate
             )
         }
 
         item {
-            SectionCard {
+            SectionCard(accent = NavSlate) {
                 // تاریخ شروع درمان همیشه در «یک خط» — متن پایین به متن بالا می‌چسبد و ادامهٔ همان خط است
                 OneLineText(
                     text = if (settings.startDateMillis != null)
@@ -141,11 +142,14 @@ fun SettingsScreen(
                     minFontSize = 9,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = VioletPrimary,
+                    color = NavSlate,
                     textAlign = TextAlign.Start
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { showDatePicker = true }) {
+                    Button(
+                        onClick = { showDatePicker = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = NavSlate)
+                    ) {
                         Text("انتخاب تاریخ")
                     }
                     OutlinedButton(onClick = {
@@ -163,7 +167,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard(title = "نوع ماده مصرفی") {
+            SectionCard(title = "نوع ماده مصرفی", accent = NavSlate) {
                 // ردیف‌ها وسط‌چین می‌شوند؛ چیپ‌ها فشرده‌اند تا ۸ ماده در دو ردیف ۴تایی جا شود
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -184,7 +188,7 @@ fun SettingsScreen(
                             label = { Text(type.label, style = MaterialTheme.typography.labelMedium) },
                             border = BorderStroke(
                                 1.25.dp,
-                                if (settings.substance == type) VioletPrimary else MaterialTheme.colorScheme.outline
+                                if (settings.substance == type) NavSlate else MaterialTheme.colorScheme.outline
                             )
                         )
                     }
@@ -192,7 +196,7 @@ fun SettingsScreen(
                 Text(
                     text = "برنامه اجرایی: ${settings.substance.program}",
                     style = MaterialTheme.typography.labelLarge,
-                    color = VioletPrimary,
+                    color = NavSlate,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -201,7 +205,7 @@ fun SettingsScreen(
         item {
             when (settings.substance.consumptionLabel) {
                 null -> {
-                    SectionCard(title = "مقدار مصرف") {
+                    SectionCard(title = "مقدار مصرف", accent = NavSlate) {
                         Text(
                             text = settings.substance.consumptionHint,
                             style = MaterialTheme.typography.bodyMedium
@@ -215,7 +219,7 @@ fun SettingsScreen(
                         SubstanceType.TRAMADOL -> TRAMADOL_OPTIONS
                         else -> emptyList()
                     }
-                    SectionCard(title = settings.substance.consumptionLabel) {
+                    SectionCard(title = settings.substance.consumptionLabel, accent = NavSlate) {
                         if (options.isNotEmpty()) {
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -238,7 +242,7 @@ fun SettingsScreen(
                                         },
                                         border = BorderStroke(
                                             1.25.dp,
-                                            if (selectedOption) VioletPrimary else MaterialTheme.colorScheme.outline
+                                            if (selectedOption) NavSlate else MaterialTheme.colorScheme.outline
                                         )
                                     )
                                 }
@@ -255,7 +259,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard(title = "مدل ساعت وعده‌ها") {
+            SectionCard(title = "مدل ساعت وعده‌ها", accent = NavSlate) {
                 // سه مدل مثل پیش‌نمایش: چیپ‌های فشرده کنار هم، متن کامل هر مدل در یک خط
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -287,7 +291,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard(title = "داده‌ها") {
+            SectionCard(title = "داده‌ها", accent = NavSlate) {
                 OutlinedButton(
                     onClick = { showResetConfirm = true },
                     modifier = Modifier.fillMaxWidth(),
@@ -304,21 +308,21 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard(title = "درباره") {
+            SectionCard(title = "درباره", accent = NavSlate) {
                 Text(
                     text = "مسافر — همراه درمان اعتیاد",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۳٫۴ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۵٫۰ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "ما می‌توانیم ✋",
                     style = MaterialTheme.typography.titleSmall,
-                    color = VioletPrimary,
+                    color = NavSlate,
                     fontWeight = FontWeight.Bold
                 )
             }

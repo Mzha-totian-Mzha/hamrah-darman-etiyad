@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -47,7 +48,7 @@ import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
 import ir.mosafir.recovery.ui.WeCanBadge
-import ir.mosafir.recovery.ui.theme.VioletPrimary
+import ir.mosafir.recovery.ui.theme.HeroPink
 import kotlin.random.Random
 
 /** رنگ‌های بازخورد درست/غلط */
@@ -163,7 +164,8 @@ private data class AnsweredQuestion(val question: QuizItem, val chosenIndex: Int
 private fun FilterChips(
     options: List<String>,
     selected: Set<String>,
-    onToggle: (String) -> Unit
+    onToggle: (String) -> Unit,
+    accent: Color
 ) {
     // کاشی ۳تایی در هر ردیف — مثل پیش‌نمایش وب (۳ ستون)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,8 +175,8 @@ private fun FilterChips(
                     val on = c in selected
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                        color = if (on) accent.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (on) accent else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .weight(1f)
                             .clickable { onToggle(c) }
@@ -184,7 +186,7 @@ private fun FilterChips(
                             fontSize = 11.5.sp,
                             lineHeight = 16.sp,
                             fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                            color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (on) accent else MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -260,7 +262,8 @@ fun ExamScreen() {
         item {
             ScreenHeader(
                 title = "آزمون",
-                subtitle = "آزمون تستی و تمرین تشریحی — از ده‌ها آزمون واقعی کنگره ۶۰"
+                subtitle = "آزمون تستی و تمرین تشریحی — از ده‌ها آزمون واقعی کنگره ۶۰",
+                accent = HeroPink
             )
         }
 
@@ -272,8 +275,8 @@ fun ExamScreen() {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (mode == "quiz") VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.25.dp, if (mode == "quiz") VioletPrimary else MaterialTheme.colorScheme.outline),
+                                color = if (mode == "quiz") HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.25.dp, if (mode == "quiz") HeroPink else MaterialTheme.colorScheme.outline),
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable { mode = "quiz" }
@@ -282,15 +285,15 @@ fun ExamScreen() {
                                     text = "🎯 آزمون تستی",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (mode == "quiz") VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (mode == "quiz") HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 10.dp),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (mode == "flash") VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.25.dp, if (mode == "flash") VioletPrimary else MaterialTheme.colorScheme.outline),
+                                color = if (mode == "flash") HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.25.dp, if (mode == "flash") HeroPink else MaterialTheme.colorScheme.outline),
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable { mode = "flash" }
@@ -299,7 +302,7 @@ fun ExamScreen() {
                                     text = "📖 تمرین تشریحی",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (mode == "flash") VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (mode == "flash") HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 10.dp),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
@@ -310,7 +313,7 @@ fun ExamScreen() {
 
                 if (mode == "quiz") {
                     item {
-                        SectionCard(title = "آزمون تستی با کلید") {
+                        SectionCard(title = "آزمون تستی با کلید", accent = HeroPink) {
                             Text(
                                 text = "${formatNumber(CORE_DST.size)} سؤال هستهٔ متد DST + ${formatNumber(bank.mcq.size)} سؤال تستیِ بانک با کلید تأییدشده. " +
                                     "پاسخ درست بلافاصله با توضیح نشان داده می‌شود.",
@@ -335,15 +338,15 @@ fun ExamScreen() {
                                     val on = quizLen == n
                                     Surface(
                                         shape = RoundedCornerShape(50),
-                                        color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-                                        border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                                        color = if (on) HeroPink.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, if (on) HeroPink else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
                                         modifier = Modifier.clickable { quizLen = n }
                                     ) {
                                         Text(
                                             text = formatNumber(n),
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = if (on) HeroPink else MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                         )
                                     }
@@ -352,11 +355,12 @@ fun ExamScreen() {
                         }
                     }
                     item {
-                        SectionCard(title = "دستهٔ منابع (اختیاری)") {
+                        SectionCard(title = "دستهٔ منابع (اختیاری)", accent = HeroPink) {
                             FilterChips(
                                 options = quizCatOptions,
                                 selected = quizCats,
-                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c }
+                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c },
+                                accent = HeroPink
                             )
                             Text(
                                 text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
@@ -367,13 +371,17 @@ fun ExamScreen() {
                         }
                     }
                     item {
-                        Button(onClick = { startQuiz() }, modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { startQuiz() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
+                        ) {
                             Text("شروع آزمون")
                         }
                     }
                 } else {
                     item {
-                        SectionCard(title = "تمرین با سؤال‌های تشریحی") {
+                        SectionCard(title = "تمرین با سؤال‌های تشریحی", accent = HeroPink) {
                             Text(
                                 text = "${formatNumber(bank.qa.size)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… " +
                                     "اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
@@ -382,11 +390,12 @@ fun ExamScreen() {
                         }
                     }
                     item {
-                        SectionCard(title = "دستهٔ منابع (اختیاری)") {
+                        SectionCard(title = "دستهٔ منابع (اختیاری)", accent = HeroPink) {
                             FilterChips(
                                 options = flashCatOptions,
                                 selected = flashCats,
-                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c }
+                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c },
+                                accent = HeroPink
                             )
                             Text(
                                 text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
@@ -397,7 +406,11 @@ fun ExamScreen() {
                         }
                     }
                     item {
-                        Button(onClick = { startFlash() }, modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { startFlash() },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
+                        ) {
                             Text("شروع تمرین")
                         }
                     }
@@ -424,11 +437,13 @@ fun ExamScreen() {
                             minFontSize = 10,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = VioletPrimary
+                            color = HeroPink
                         )
                         LinearProgressIndicator(
                             progress = { (qIndex + 1).toFloat() / quizList.size.toFloat() },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            color = HeroPink,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Text(
                             text = q.cat,
@@ -439,7 +454,7 @@ fun ExamScreen() {
                     }
                 }
                 item {
-                    SectionCard(title = q.question) {
+                    SectionCard(title = q.question, accent = HeroPink) {
                         q.options.forEachIndexed { i, option ->
                             val isCorrect = i == q.correctIndex
                             val isChosen = chosen == i
@@ -452,7 +467,7 @@ fun ExamScreen() {
                             val border = when {
                                 answered && isCorrect -> BorderStroke(1.5.dp, CorrectGreen)
                                 answered && isChosen && !isCorrect -> BorderStroke(1.5.dp, WrongRed)
-                                isChosen -> BorderStroke(1.5.dp, VioletPrimary)
+                                isChosen -> BorderStroke(1.5.dp, HeroPink)
                                 else -> BorderStroke(1.25.dp, MaterialTheme.colorScheme.outline)
                             }
                             Surface(
@@ -471,7 +486,7 @@ fun ExamScreen() {
                                         modifier = Modifier
                                             .size(22.dp)
                                             .clip(CircleShape)
-                                            .background(if (isChosen) VioletPrimary else MaterialTheme.colorScheme.surfaceVariant),
+                                            .background(if (isChosen) HeroPink else MaterialTheme.colorScheme.surfaceVariant),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
@@ -508,15 +523,18 @@ fun ExamScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                Button(onClick = {
-                                    if (qIndex + 1 < quizList.size) {
-                                        qIndex += 1
-                                        chosen = null
-                                        answered = false
-                                    } else {
-                                        phase = "done"
-                                    }
-                                }) {
+                                Button(
+                                    onClick = {
+                                        if (qIndex + 1 < quizList.size) {
+                                            qIndex += 1
+                                            chosen = null
+                                            answered = false
+                                        } else {
+                                            phase = "done"
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
+                                ) {
                                     Text(
                                         if (qIndex + 1 < quizList.size) "سؤال بعدی" else "دیدن نتیجه"
                                     )
@@ -536,7 +554,12 @@ fun ExamScreen() {
                                             history = history + AnsweredQuestion(q, c)
                                         }
                                     },
-                                    enabled = chosen != null
+                                    enabled = chosen != null,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = HeroPink,
+                                        disabledContainerColor = HeroPink.copy(alpha = 0.4f),
+                                        disabledContentColor = Color.White
+                                    )
                                 ) {
                                     Text("ثبت پاسخ")
                                 }
@@ -570,11 +593,13 @@ fun ExamScreen() {
                                 minFontSize = 10,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = VioletPrimary
+                                color = HeroPink
                             )
                             LinearProgressIndicator(
                                 progress = { (fIndex + 1).toFloat() / flashList.size.toFloat() },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                color = HeroPink,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                             Text(
                                 text = f.cat,
@@ -585,7 +610,7 @@ fun ExamScreen() {
                         }
                     }
                     item {
-                        SectionCard(title = f.q) {
+                        SectionCard(title = f.q, accent = HeroPink) {
                             if (reveal) {
                                 Surface(
                                     color = CorrectGreen.copy(alpha = 0.08f),
@@ -638,7 +663,11 @@ fun ExamScreen() {
                                     ) { Text("بلد نبودم ✗") }
                                 }
                             } else {
-                                Button(onClick = { reveal = true }, modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { reveal = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = HeroPink)
+                                ) {
                                     Text("نمایش پاسخ")
                                 }
                             }
@@ -665,14 +694,14 @@ fun ExamScreen() {
 
             "done" -> if (mode == "quiz") {
                 item {
-                    SectionCard(title = "نتیجهٔ آزمون") {
+                    SectionCard(title = "نتیجهٔ آزمون", accent = HeroPink) {
                         OneLineText(
                             text = "${formatNumber(score)} از ${formatNumber(quizList.size)} درست",
                             baseFontSize = 26,
                             minFontSize = 14,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
-                            color = VioletPrimary
+                            color = HeroPink
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -696,14 +725,14 @@ fun ExamScreen() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                         ) {
-                            Button(onClick = { startQuiz() }) { Text("آزمون دوباره") }
+                            Button(onClick = { startQuiz() }, colors = ButtonDefaults.buttonColors(containerColor = HeroPink)) { Text("آزمون دوباره") }
                             OutlinedButton(onClick = { phase = "start" }) { Text("صفحهٔ اول") }
                         }
                     }
                 }
 
                 item {
-                    SectionCard(title = "مرور پاسخ‌ها") {
+                    SectionCard(title = "مرور پاسخ‌ها", accent = HeroPink) {
                         history.forEachIndexed { idx, h ->
                             val wasRight = h.chosenIndex == h.question.correctIndex
                             Column(
@@ -734,14 +763,14 @@ fun ExamScreen() {
                 }
             } else {
                 item {
-                    SectionCard(title = "خلاصهٔ تمرین") {
+                    SectionCard(title = "خلاصهٔ تمرین", accent = HeroPink) {
                         OneLineText(
                             text = "✓ ${formatNumber(known)} بلد بودم · ✗ ${formatNumber(unknown)} بلد نبودم",
                             baseFontSize = 20,
                             minFontSize = 12,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = VioletPrimary
+                            color = HeroPink
                         )
                         Text(
                             text = "سؤال‌های «بلد نبودم» را در جلسهٔ بعدی تمرین، اول مرور کن؛ تکرار، کلید یادگیری است. ما می‌توانیم ✋",
@@ -751,7 +780,7 @@ fun ExamScreen() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                         ) {
-                            Button(onClick = { startFlash() }) { Text("تمرین دوباره") }
+                            Button(onClick = { startFlash() }, colors = ButtonDefaults.buttonColors(containerColor = HeroPink)) { Text("تمرین دوباره") }
                             OutlinedButton(onClick = { phase = "start" }) { Text("صفحهٔ اول") }
                         }
                     }

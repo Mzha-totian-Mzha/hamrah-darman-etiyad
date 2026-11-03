@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,11 +26,15 @@ import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.ui.theme.AmberAccent
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 
-/** کارت استاندارد بخش‌ها — سفید، خیلی‌گرد، سایهٔ نرم (بدون حاشیه) — سبک «پلنر من» */
+/**
+ * کارت استاندارد بخش‌ها — سفید، خیلی‌گرد، سایهٔ نرم (بدون حاشیه) — سبک «پلنر من»
+ * @param accent رنگ تیتر کارت — هر تب رنگ هویتی خودش را می‌فرستد (مثل «پلنر من»)
+ */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
     title: String? = null,
+    accent: Color = VioletPrimary,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
@@ -47,7 +52,7 @@ fun SectionCard(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = VioletPrimary
+                    color = accent
                 )
             }
             content()
@@ -151,15 +156,21 @@ fun NoticeCard(text: String) {
     }
 }
 
-/** سرتیتر صفحه‌ها */
+/**
+ * سرتیتر صفحه‌ها — @param accent رنگ تیتر؛ هر تب رنگ اختصاصی خودش را دارد
+ */
 @Composable
-fun ScreenHeader(title: String, subtitle: String? = null) {
+fun ScreenHeader(
+    title: String,
+    subtitle: String? = null,
+    accent: Color = VioletPrimary
+) {
     Column(modifier = Modifier.padding(bottom = 4.dp)) {
         Text(
             text = title,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = VioletPrimary
+            color = accent
         )
         if (subtitle != null) {
             Text(

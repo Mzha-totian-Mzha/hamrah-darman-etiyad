@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +36,7 @@ import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
-import ir.mosafir.recovery.ui.theme.VioletPrimary
+import ir.mosafir.recovery.ui.theme.NavViolet
 
 private val MOODS = listOf("😞", "😕", "😐", "🙂", "😄")
 
@@ -64,14 +65,16 @@ fun JournalScreen(
             item {
                 ScreenHeader(
                     title = "ثبت روزانه",
-                    subtitle = "هر شب چند دقیقه وقت بگذار؛ نگاه به گذشته، چراغ راه آینده است"
+                    subtitle = "هر شب چند دقیقه وقت بگذار؛ نگاه به گذشته، چراغ راه آینده است",
+                    accent = NavViolet
                 )
             }
 
             item {
                 Button(
                     onClick = { showDialog = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = NavViolet)
                 ) {
                     Text(if (todayEntry == null) "ثبت وضعیت امروز" else "ویرایش ثبت امروز")
                 }
@@ -207,7 +210,7 @@ private fun EntryDialog(
                             Text(
                                 text = emoji,
                                 style = MaterialTheme.typography.titleLarge,
-                                color = if (mood == index) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (mood == index) NavViolet else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

@@ -52,7 +52,7 @@ import ir.mosafir.recovery.ui.NoticeCard
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
 import ir.mosafir.recovery.ui.theme.AmberAccent
-import ir.mosafir.recovery.ui.theme.VioletPrimary
+import ir.mosafir.recovery.ui.theme.NavTeal
 
 /** سبز تیک پله‌های تمام‌شده — مثل پیش‌نمایش */
 private val GreenOK = Color(0xFF2E7D32)
@@ -113,7 +113,8 @@ fun ProtocolScreen(settings: UserSettings) {
         item {
             ScreenHeader(
                 title = "پروتکل",
-                subtitle = "پله‌های کاهش مصرف — متد DST (اصلاحیهٔ ۱۳۹۸/۳/۱)"
+                subtitle = "پله‌های کاهش مصرف — متد DST (اصلاحیهٔ ۱۳۹۸/۳/۱)",
+                accent = NavTeal
             )
         }
 
@@ -142,13 +143,13 @@ fun ProtocolScreen(settings: UserSettings) {
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(VioletPrimary.copy(alpha = 0.12f)),
+                            .background(NavTeal.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Flag,
                             contentDescription = null,
-                            tint = VioletPrimary,
+                            tint = NavTeal,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -168,14 +169,14 @@ fun ProtocolScreen(settings: UserSettings) {
                             .fillMaxWidth(viewProgress)
                             .height(8.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(VioletPrimary)
+                            .background(NavTeal)
                     )
                 }
 
                 // جعبهٔ مصرف هر وعده
                 if (viewStep != null && viewStep.perDoseCc > 0) {
                     Surface(
-                        color = VioletPrimary.copy(alpha = 0.07f),
+                        color = NavTeal.copy(alpha = 0.07f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .padding(top = 12.dp)
@@ -188,7 +189,7 @@ fun ProtocolScreen(settings: UserSettings) {
                             Icon(
                                 imageVector = Icons.Outlined.WaterDrop,
                                 contentDescription = null,
-                                tint = VioletPrimary,
+                                tint = NavTeal,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(Modifier.width(8.dp))
@@ -201,7 +202,7 @@ fun ProtocolScreen(settings: UserSettings) {
                                     }) + " وعده در شبانه‌روز",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
-                                color = VioletPrimary
+                                color = NavTeal
                             )
                         }
                     }
@@ -268,15 +269,15 @@ fun ProtocolScreen(settings: UserSettings) {
                             val teal = isSelected || (selStep < 0 && isCurrent)
 
                             val bg = when {
-                                teal -> VioletPrimary
+                                teal -> NavTeal
                                 isDone -> GreenOK.copy(alpha = 0.1f)
-                                isCurrent -> VioletPrimary.copy(alpha = 0.08f)
+                                isCurrent -> NavTeal.copy(alpha = 0.08f)
                                 else -> MaterialTheme.colorScheme.surface
                             }
                             val border = when {
-                                teal -> BorderStroke(1.dp, VioletPrimary)
+                                teal -> BorderStroke(1.dp, NavTeal)
                                 isDone -> BorderStroke(1.dp, GreenOK.copy(alpha = 0.35f))
-                                isCurrent -> BorderStroke(1.dp, VioletPrimary)
+                                isCurrent -> BorderStroke(1.dp, NavTeal)
                                 else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                             }
 
@@ -340,7 +341,7 @@ fun ProtocolScreen(settings: UserSettings) {
         }
 
         item {
-            SectionCard(title = "مشخصات برنامه") {
+            SectionCard(title = "مشخصات برنامه", accent = NavTeal) {
                 ParamRow("نوع ماده", settings.substance.label)
                 ParamRow("برنامه اجرایی", settings.substance.program)
                 ParamRow("OT روزانه در پله اول", "${formatDose(plan.startDailyCc)} سی‌سی")
@@ -354,7 +355,7 @@ fun ProtocolScreen(settings: UserSettings) {
 
         if (usesOtLadder) {
             item {
-                SectionCard(title = "توضیح جدول OT") {
+                SectionCard(title = "توضیح جدول OT", accent = NavTeal) {
                     Protocol.OT_LADDER_NOTES.forEach { note ->
                         Text(
                             text = "• $note",
@@ -395,7 +396,7 @@ private fun ParamRow(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = VioletPrimary
+            color = NavTeal
         )
     }
 }
