@@ -1,24 +1,38 @@
 package ir.mosafir.recovery.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,32 +40,70 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import ir.mosafir.recovery.data.PersianDate
 import ir.mosafir.recovery.data.PlanStep
 import ir.mosafir.recovery.data.Protocol
-import ir.mosafir.recovery.data.SubstanceType
 import ir.mosafir.recovery.data.StepKind
 import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatDose
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.NoticeCard
-import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
 import ir.mosafir.recovery.ui.theme.AmberAccent
 import ir.mosafir.recovery.ui.theme.VioletPrimary
 
-/** خط سبز جدول — مرز ستون «مصرف» و «مدت»؛ اعداد از روی این خط چپ‌چین می‌شوند */
-private val GreenRule = Color(0xFF43A047)
+/** سبز تیک پله‌های تمام‌شده — مثل پیش‌نمایش */
+private val GreenOK = Color(0xFF2E7D32)
 
+/**
+ * صفحهٔ پروتکل — مطابق پیش‌نمایش وب (عکس ۹):
+ *  • کارت بالا: توضیح پلهٔ جاری یا پلهٔ انتخاب‌شده با کلیک
+ *  • کاشی‌های ۱۵ پله — ۳ ستون × ۵ ردیف؛ با کلیک هایلایت و توضیح در کارت بالا
+ */
 @Composable
 fun ProtocolScreen(settings: UserSettings) {
     val plan = remember(settings) { Protocol.buildPlan(settings) }
     val now = remember { System.currentTimeMillis() }
     val days = remember(settings) { Protocol.daysSinceStart(settings, now) }
     val currentIndex = remember(settings) { Protocol.currentStepIndex(plan, days) }
-    val usesOtLadder = settings.substance != SubstanceType.STIMULANT &&
-        settings.substance != SubstanceType.ALCOHOL
+    val usesOtLadder = settings.substance != ir.mosafir.recovery.data.SubstanceType.STIMULANT &&
+        settings.substance != ir.mosafir.recovery.data.SubstanceType.ALCOHOL
+    val hasStart = settings.startDateMillis != null
+
+    val currentStep = currentIndex?.let { plan.steps[it] }
+    val currentLadderIdx = currentStep
+        ?.let { step -> Protocol.OT_LADDER.indexOfFirst { it.title == step.title } }
+        ?: -1
+
+    // پلهٔ انتخاب‌شده با کلیک — هایلایت کاشی + توضیح در کارت بالا
+    var selStep by remember { mutableIntStateOf(-1) }
+
+    val ladderStartDay = { i: Int ->
+        Protocol.OT_LADDER.take(i).sumOf { it.days }
+    }
+    val ladderTotal = Protocol.OT_LADDER.sumOf { it.days }
+
+    // محتوای کارت بالا — انتخاب‌شده یا جاری
+    val viewStep: PlanStep? = if (selStep >= 0) Protocol.OT_LADDER[selStep] else currentStep
+    val viewTitle = when {
+        selStep >= 0 ->
+            "پلهٔ ${formatNumber(selStep + 1)} از ${formatNumber(Protocol.OT_LADDER.size)} — " +
+                "روز ${formatNumber(ladderStartDay(selStep) + 1)} تا ${formatNumber(ladderStartDay(selStep) + Protocol.OT_LADDER[selStep].days)} سفر"
+        currentStep != null ->
+            "${currentStep.title} — روز ${formatNumber(Protocol.stepStartDay(plan, currentIndex!!) + 1)} تا ${formatNumber(Protocol.stepStartDay(plan, currentIndex) + currentStep.days)} سفر"
+        else -> "برای دیدن پلهٔ جاری، تاریخ شروع درمان را در تنظیمات ثبت کن"
+    }
+    val viewNote = if (selStep >= 0) Protocol.OT_LADDER[selStep].note
+    else "هر پله ۲۱ روز • کاهش ۲۰٪ مصرف نسبت به پلهٔ قبل"
+    val viewProgress = when {
+        selStep >= 0 -> ladderStartDay(selStep).toFloat() / ladderTotal.toFloat()
+        plan.totalDays > 0 -> (days.toFloat() / plan.totalDays.toFloat()).coerceIn(0.02f, 1f)
+        else -> 0f
+    }
+    val viewEndDays: Int = if (selStep >= 0) ladderStartDay(selStep) + Protocol.OT_LADDER[selStep].days
+    else currentIndex?.let { idx -> (Protocol.stepStartDay(plan, idx) + plan.steps[idx].days).toInt() } ?: 0
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -60,9 +112,231 @@ fun ProtocolScreen(settings: UserSettings) {
     ) {
         item {
             ScreenHeader(
-                title = "پروتکل درمان (DST)",
-                subtitle = "پله‌های برنامه ${settings.substance.program} — اصلاحیه ۱۳۹۸/۳/۱"
+                title = "پروتکل",
+                subtitle = "پله‌های کاهش مصرف — متد DST (اصلاحیهٔ ۱۳۹۸/۳/۱)"
             )
+        }
+
+        // کارت بالای درمان — با کلیک روی هر پله، توضیح همان پله همین‌جا نمایش داده می‌شود
+        item {
+            SectionCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = viewTitle,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 14.5.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = viewNote,
+                            fontSize = 11.sp,
+                            lineHeight = 17.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Justify,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(VioletPrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Flag,
+                            contentDescription = null,
+                            tint = VioletPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                // نوار پیشرفت
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(viewProgress)
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(VioletPrimary)
+                    )
+                }
+
+                // جعبهٔ مصرف هر وعده
+                if (viewStep != null && viewStep.perDoseCc > 0) {
+                    Surface(
+                        color = VioletPrimary.copy(alpha = 0.07f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.WaterDrop,
+                                contentDescription = null,
+                                tint = VioletPrimary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "مصرف هر وعده: ${formatDose(viewStep.perDoseCc)}cc — " +
+                                    (when (viewStep.dosesPerDay) {
+                                        3 -> "سه"
+                                        2 -> "دو"
+                                        else -> "یک"
+                                    }) + " وعده در شبانه‌روز",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = VioletPrimary
+                            )
+                        }
+                    }
+                }
+
+                // پایان این پله
+                if (viewStep != null && settings.startDateMillis != null && viewEndDays > 0) {
+                    Text(
+                        text = "پایان این پله: ${PersianDate.formatLong(settings.startDateMillis + viewEndDays * 86_400_000L)}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AmberAccent,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                // راهنمای بازگشت به پلهٔ جاری
+                if (selStep >= 0 && selStep != currentLadderIdx) {
+                    Text(
+                        text = "برای بازگشت به پلهٔ جاری، دوباره روی همان پله بزن.",
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+
+        // پله‌ها — کاشی ۳تایی × ۵ ردیف (۱۵ پلهٔ DST)
+        item {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "پله‌ها",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "${formatNumber(Protocol.OT_LADDER.size)} پله تا رهایی • هر پله ۲۱ روز",
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Protocol.OT_LADDER.chunked(3).forEachIndexed { rowIdx, rowSteps ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowSteps.forEachIndexed { colIdx, step ->
+                            val i = rowIdx * 3 + colIdx
+                            val isCurrent = hasStart && i == currentLadderIdx
+                            val isDone = hasStart && currentLadderIdx >= 0 && i < currentLadderIdx
+                            val isSelected = selStep == i
+                            val teal = isSelected || (selStep < 0 && isCurrent)
+
+                            val bg = when {
+                                teal -> VioletPrimary
+                                isDone -> GreenOK.copy(alpha = 0.1f)
+                                isCurrent -> VioletPrimary.copy(alpha = 0.08f)
+                                else -> MaterialTheme.colorScheme.surface
+                            }
+                            val border = when {
+                                teal -> BorderStroke(1.dp, VioletPrimary)
+                                isDone -> BorderStroke(1.dp, GreenOK.copy(alpha = 0.35f))
+                                isCurrent -> BorderStroke(1.dp, VioletPrimary)
+                                else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = bg,
+                                border = border,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selStep = if (isSelected) -1 else i }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (isDone && !isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = null,
+                                            tint = GreenOK,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    } else {
+                                        Spacer(Modifier.height(14.dp))
+                                    }
+                                    Text(
+                                        text = "پلهٔ ${formatNumber(i + 1)}",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 13.sp,
+                                        color = if (teal) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = if (step.kind == StepKind.FINAL) "۲ تا ۲۱ روز"
+                                        else "${formatNumber(step.days)} روز",
+                                        fontSize = 9.5.sp,
+                                        color = if (teal) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        // پرکردن ردیف ناقص — جدول ۱۵تایی همیشه ۳تایی است ولی برای اطمینان
+                        repeat(3 - rowSteps.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                Text(
+                    text = "جدول تیپرینگ OT — پیوست ۱ (۱۵ پله) • با کلیک روی هر پله، توضیح آن بالا نمایش داده می‌شود",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                )
+            }
         }
 
         item {
@@ -75,59 +349,6 @@ fun ProtocolScreen(settings: UserSettings) {
                     "طول کل برنامه",
                     "${formatNumber(plan.totalDays)} روز (حدود ${formatNumber((plan.totalDays / 30.4).toInt() + 1)} ماه)"
                 )
-            }
-        }
-
-        item {
-            // جدول پله‌ها — سه ستون: پله (راست) | مصرف (وسط) | مدت (چپ)
-            SectionCard(title = "پله‌های درمان") {
-                // سرستون
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "پله",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        "مصرف",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1.55f)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .width(2.dp)
-                            .height(18.dp)
-                            .background(GreenRule)
-                    )
-                    Text(
-                        "مدت",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(0.6f)
-                    )
-                }
-                HorizontalDivider()
-
-                plan.steps.forEachIndexed { index, step ->
-                    StepRow(
-                        step = step,
-                        isCurrent = index == currentIndex,
-                        endMillis = settings.startDateMillis?.let { start ->
-                            start + (Protocol.stepStartDay(plan, index) + step.days) * 86_400_000L
-                        }
-                    )
-                }
             }
         }
 
@@ -176,125 +397,5 @@ private fun ParamRow(label: String, value: String) {
             fontWeight = FontWeight.Bold,
             color = VioletPrimary
         )
-    }
-}
-
-/**
- * یک ردیف جدول — دقیقاً مثل جدول مرجع (عکس ۸۸):
- *  • پله: سمت راست
- *  • مصرف: وسط — عبارت «هر وعده ۲cc × ۳ = روزانه ۶cc» دست‌نخورده،
- *    اعداد چپ‌چین و چسبیده به خط سبز
- *  • مدت: سمت چپ — هیچ‌وقت روی اعداد مصرف نمی‌افتد
- */
-@Composable
-private fun StepRow(step: PlanStep, isCurrent: Boolean, endMillis: Long?) {
-    val container = if (isCurrent) MaterialTheme.colorScheme.primaryContainer
-    else MaterialTheme.colorScheme.surface
-
-    Surface(
-        color = container,
-        shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // ستون پله — راست
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OneLineText(
-                        text = step.title,
-                        baseFontSize = 12,
-                        minFontSize = 7,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Start,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                    if (isCurrent) {
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 4.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(VioletPrimary)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                "الان",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                }
-
-                // ستون مصرف — وسط؛ اعداد چپ‌چین از خط سبز
-                if (step.perDoseCc > 0) {
-                    OneLineText(
-                        text = "هر وعده ${formatDose(step.perDoseCc)}cc × ${formatNumber(step.dosesPerDay)} = روزانه ${formatDose(step.dailyCc)}cc",
-                        baseFontSize = 12,
-                        minFontSize = 7,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.weight(1.55f)
-                    )
-                } else {
-                    Text(
-                        text = "—",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1.55f)
-                    )
-                }
-
-                // خط سبز جدول
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .width(2.dp)
-                        .height(20.dp)
-                        .background(GreenRule)
-                )
-
-                // ستون مدت — چپ
-                OneLineText(
-                    text = if (step.kind == StepKind.FINAL) "۲ تا ۲۱ روز"
-                    else "${formatNumber(step.days)} روز",
-                    baseFontSize = 11,
-                    minFontSize = 7,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(0.6f)
-                )
-            }
-
-            // یادداشت پله — زیر ردیف، بدون تداخل با ستون‌ها
-            if (step.note.isNotBlank()) {
-                Text(
-                    text = step.note,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            if (isCurrent && endMillis != null) {
-                Text(
-                    text = "پایان این پله: ${PersianDate.formatLong(endMillis)}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = AmberAccent,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-        }
     }
 }

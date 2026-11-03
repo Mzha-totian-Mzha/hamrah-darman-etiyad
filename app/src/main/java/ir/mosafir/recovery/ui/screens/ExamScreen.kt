@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -158,52 +159,48 @@ private fun BankMcq.toQuizItem(): QuizItem = QuizItem(
 /** سؤال‌های پاسخ‌داده‌شده برای مرور نهایی */
 private data class AnsweredQuestion(val question: QuizItem, val chosenIndex: Int)
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterChips(
     options: List<String>,
     selected: Set<String>,
-    onToggle: (String) -> Unit,
-    onClear: () -> Unit
+    onToggle: (String) -> Unit
 ) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        options.forEach { c ->
-            val on = c in selected
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                modifier = Modifier.clickable { onToggle(c) }
-            ) {
-                Text(
-                    text = c,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                    color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-        }
-        if (selected.isNotEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.clickable { onClear() }
-            ) {
-                Text(
-                    text = "پاک‌کردن",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
+    // کاشی ۳تایی در هر ردیف — مثل پیش‌نمایش وب (۳ ستون)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.chunked(3).forEach { rowOpts ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowOpts.forEach { c ->
+                    val on = c in selected
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (on) VioletPrimary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (on) VioletPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onToggle(c) }
+                    ) {
+                        Text(
+                            text = c,
+                            fontSize = 11.5.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                            color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 14.dp)
+                        )
+                    }
+                }
+                repeat(3 - rowOpts.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExamScreen() {
     val context = LocalContext.current
@@ -262,7 +259,7 @@ fun ExamScreen() {
     ) {
         item {
             ScreenHeader(
-                title = "امتحان",
+                title = "آزمون",
                 subtitle = "آزمون تستی و تمرین تشریحی — از ده‌ها آزمون واقعی کنگره ۶۰"
             )
         }
@@ -313,7 +310,7 @@ fun ExamScreen() {
 
                 if (mode == "quiz") {
                     item {
-                        SectionCard(title = "امتحان تستی با کلید") {
+                        SectionCard(title = "آزمون تستی با کلید") {
                             Text(
                                 text = "${formatNumber(CORE_DST.size)} سؤال هستهٔ متد DST + ${formatNumber(bank.mcq.size)} سؤال تستیِ بانک با کلید تأییدشده. " +
                                     "پاسخ درست بلافاصله با توضیح نشان داده می‌شود.",
@@ -322,10 +319,19 @@ fun ExamScreen() {
                             Text(
                                 text = "تعداد سؤال:",
                                 style = MaterialTheme.typography.labelLarge,
-                                modifier = Modifier.padding(top = 10.dp)
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 10.dp)
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
-                                listOf(10, 20, 30).forEach { n ->
+                            FlowRow(
+                                horizontalArrangement = Arrangement.Center,
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp)
+                            ) {
+                                listOf(10, 20, 30, 40, 50, 60, 70).forEach { n ->
                                     val on = quizLen == n
                                     Surface(
                                         shape = RoundedCornerShape(50),
@@ -338,7 +344,7 @@ fun ExamScreen() {
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
                                             color = if (on) VioletPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                         )
                                     }
                                 }
@@ -350,8 +356,7 @@ fun ExamScreen() {
                             FilterChips(
                                 options = quizCatOptions,
                                 selected = quizCats,
-                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c },
-                                onClear = { quizCats = emptySet() }
+                                onToggle = { c -> quizCats = if (c in quizCats) quizCats - c else quizCats + c }
                             )
                             Text(
                                 text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
@@ -363,7 +368,7 @@ fun ExamScreen() {
                     }
                     item {
                         Button(onClick = { startQuiz() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("شروع امتحان")
+                            Text("شروع آزمون")
                         }
                     }
                 } else {
@@ -381,8 +386,7 @@ fun ExamScreen() {
                             FilterChips(
                                 options = flashCatOptions,
                                 selected = flashCats,
-                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c },
-                                onClear = { flashCats = emptySet() }
+                                onToggle = { c -> flashCats = if (c in flashCats) flashCats - c else flashCats + c }
                             )
                             Text(
                                 text = "هیچ دسته‌ای انتخاب نشود = همهٔ منابع",
@@ -661,7 +665,7 @@ fun ExamScreen() {
 
             "done" -> if (mode == "quiz") {
                 item {
-                    SectionCard(title = "نتیجهٔ امتحان") {
+                    SectionCard(title = "نتیجهٔ آزمون") {
                         OneLineText(
                             text = "${formatNumber(score)} از ${formatNumber(quizList.size)} درست",
                             baseFontSize = 26,
@@ -683,7 +687,7 @@ fun ExamScreen() {
                                     percent >= 90 -> "فوق‌العاده بود! آشنایی‌ات عالی است. ما می‌توانیم ✋"
                                     percent >= 70 -> "خیلی خوب بود! یک مرور کوتاه روی جدول پروتکل، تو را کامل می‌کند."
                                     percent >= 50 -> "بد نبود؛ اما پیشنهاد می‌کنم صفحهٔ «پروتکل» را یک‌بار دیگر با دقت بخوانی."
-                                    else -> "نگران نباش؛ هر مسافری اولش این‌جوری است. جزوه و صفحهٔ پروتکل را مرور کن و دوباره امتحان بده. ما می‌توانیم ✋"
+                                    else -> "نگران نباش؛ هر مسافری اولش این‌جوری است. جزوه و صفحهٔ پروتکل را مرور کن و دوباره آزمون بده. ما می‌توانیم ✋"
                                 },
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -692,7 +696,7 @@ fun ExamScreen() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
                         ) {
-                            Button(onClick = { startQuiz() }) { Text("امتحان دوباره") }
+                            Button(onClick = { startQuiz() }) { Text("آزمون دوباره") }
                             OutlinedButton(onClick = { phase = "start" }) { Text("صفحهٔ اول") }
                         }
                     }
