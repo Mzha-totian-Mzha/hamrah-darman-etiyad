@@ -1,23 +1,16 @@
 {
  "mcq": 1431,
- "mcq_full4": 1366,
- "mcq_with_key": 213,
- "mcq_needs_review": 20,
- "qa": 2268,
- "qa_with_answer": 2020,
- "qa_needs_review": 12,
- "duplicates_removed": 522,
- "descriptive_moved_from_mcq": 0,
- "total_unique": 3699,
- "by_category": {
-  "۱۴ وادی عشق": 1217,
-  "آزمون عمومی": 778,
-  "راهنما و راهنمایی": 672,
-  "۱۴ مقاله": 515,
-  "آزمون همسفران": 312,
-  "۶۰ درجه": 111,
-  "جهان‌بینی": 60,
-  "شرح وظایف": 20,
-  "پروتکل DST": 14
+ "mcq_ok": 1425,
+ "mcq_ok_with_key": 232,
+ "mcq_review": 0,
+ "mcq_broken_source": 2,
+ "mcq_dup": 2,
+ "qa": 2270,
+ "qa_ok": 2076,
+ "qa_review": 0,
+ "vision_review": {
+  "date": "2026-07-04",
+  "method": "manual vision transcription from 200-250dpi PDF page crops",
+  "fixes_file": "manual_fixes.json"
  }
 }
