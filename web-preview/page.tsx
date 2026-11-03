@@ -825,7 +825,7 @@ type Bank = { mcq: BankMcq[]; qa: BankQa[] };
 
 const LETTER_ORDER = ["الف", "ب", "ج", "د"] as const;
 
-type QuizItem = { question: string; options: string[]; correctIndex: number; explanation: string; cat: string };
+type QuizItem = { id?: string; question: string; options: string[]; correctIndex: number; explanation: string; cat: string };
 
 /* ذخیره‌گاه سؤال‌های غلط — مبنای کارت «مرور اشتباه‌ها» */
 const WRONG_KEY = "hamrah_wrong_v1";
@@ -845,6 +845,35 @@ const saveWrong = (list: QuizItem[]) => {
   } catch {
     /* بی‌صدا */
   }
+};
+
+/**
+ * چرخش هوشمند سؤال‌ها — آخرین سؤال‌های دیده‌شده (تا ۴۰۰) ذخیره می‌شود تا
+ * هر بار ورود به آزمون، تا جای ممکن سؤال تازه بیاید و سؤال‌های سشن قبل تکرار نشوند.
+ */
+const RECENT_MAX = 400;
+const loadRecent = (mode: string): string[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(`hamrah_recent_${mode}`) ?? "[]") as unknown;
+    return Array.isArray(v) ? (v as string[]).filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+};
+const saveRecent = (mode: string, ids: string[]) => {
+  try {
+    const merged = [...new Set([...loadRecent(mode), ...ids])].slice(-RECENT_MAX);
+    localStorage.setItem(`hamrah_recent_${mode}`, JSON.stringify(merged));
+  } catch {
+    /* بی‌صدا */
+  }
+};
+/* چینش سشن جدید: اول سؤال‌های تازه، بعد سؤال‌های دیده‌شده — هر گروه خودش شافل می‌شود */
+const rotateFresh = <T,>(pool: [string, T][], recent: string[]): T[] => {
+  const seen = new Set(recent);
+  const fresh = shuffle(pool.filter(([id]) => !seen.has(id)).map(([, x]) => x));
+  const old = shuffle(pool.filter(([id]) => seen.has(id)).map(([, x]) => x));
+  return [...fresh, ...old];
 };
 
 const CORE_DST: QuizItem[] = [
@@ -876,7 +905,7 @@ const mcqToQuiz = (m: BankMcq): QuizItem => {
   const safe = ansIndex >= 0 ? ansIndex : 0;
   const explanation =
     "پاسخ درست: " + (texts[safe] ?? "") + (m.ref ? " · " + m.ref : "") + " · منبع: " + m.cat;
-  return { question: m.q, options: texts, correctIndex: safe, explanation, cat: m.cat };
+  return { id: m.id, question: m.q, options: texts, correctIndex: safe, explanation, cat: m.cat };
 };
 
 /* ================================ کتابخانه ================================ */
@@ -894,35 +923,35 @@ const LIB_ITEMS: LibItem[] = [
     title: "چهارده مقاله",
     sub: "مقالات • مهندس حسین دژاکام •",
     color: NAV_COLORS.home,
-    text: "توصیف حال امروز ما — ما که امروز در این جمع نشسته‌ایم، روزی با مواد مخدر زندگی می‌کردیم؛ کانال‌های عصبی بدن ما تحت تأثیر مواد قرار گرفته بود و تفکر ما درست عمل نمی‌کرد. با ورود به کنگره ۶۰ و پذیرش بیماری، راه درمان را آغاز کردیم. امروز می‌توانیم با تکیه بر تجربهٔ همسفران، زندگی سالم و آرام بسازیم؛ ما می‌توانیم.",
+    text: "کتاب «چهارده مقاله» مجموعهٔ چهارده مقالهٔ آموزشی مهندس حسین دژاکام، بنیان‌گذار کنگره ۶۰ است. مقاله‌ها با توصیف حال امروزِ ما آغاز می‌شوند: ما که امروز در این جمع نشسته‌ایم، روزی با مواد مخدر زندگی می‌کردیم؛ کانال‌های عصبی بدنمان تحت تأثیر مواد قرار گرفته بود و تفکرمان درست عمل نمی‌کرد. با ورود به کنگره ۶۰ و پذیرش بیماری، راه درمان را آغاز کردیم. در ادامهٔ کتاب، سه ضلع درمان — جسم، روان و جهان‌بینی — یک‌به‌یک با راه‌حل‌های عملی شرح داده می‌شود. پیام کتاب روشن است: اعتیاد بیماری است و این بیماری، درمان دارد؛ ما می‌توانیم.",
   },
   {
     id: "lib-02",
     title: "کنگره ۶۰ چیست؟",
     sub: "معرفی • سابقه و اهداف کنگرهٔ ۶۰ •",
     color: NAV_COLORS.plan,
-    text: "کنگره ۶۰ محفلی است برای آموزش و درمان اعتیاد. این مجموعه توسط مهندس حسین دژاکام بنیان گذاشته شد و درمان در آن بر پایهٔ متد DST یعنی تخفیف تدریجی مصرف انجام می‌شود. در کنگره ۶۰، اعتیاد یک بیماری در نظر گرفته می‌شود که با نظم، محبت و پیگیری درمان، قابل کنترل است. هدف، ساختن مسافری است که با رهایی از مواد، به ارزشمندی و آرامش برسد.",
+    text: "کنگره ۶۰ تشکیلات تحقیقاتی مستقلی است که برای رهایی مصرف‌کنندگان مواد مخدر از دام اعتیاد شکل گرفته است؛ برای کسانی که همواره خواستار ترک بودند، اما راه‌حل منطقی برای درمان خود پیدا نکرده بودند. اساس شکل‌گیری کنگره بر این اصل است: فردی که خودش رها شده، به فردی که هنوز در حال مصرف است کمک می‌کند. اساس کار کنگره ۶۰ بر محبت، عقل و ایمان استوار است. در جلسات، هر عضو از تجربه و دانش خودش در مقولهٔ اعتیاد و دستور جلسه سخن می‌گوید و از نصیحت کردن و شعار دادن پرهیز می‌شود. کنگره به هیچ گروهی وابسته نیست و از نظر مالی به خود متکی است؛ استحکام پایه‌های مالی و علمی، همواره از اهداف آن بوده است.",
   },
   {
     id: "lib-03",
     title: "راهنمای تازه‌واردین",
     sub: "راهنما • نخستین روزهای سفر •",
     color: NAV_COLORS.exam,
-    text: "راهنمای تازه‌واردین؛ نخستین روزهای سفر. تازه‌واردی که وارد کنگره می‌شود، اول باید بداند که اعتیاد بیماری است و درمان دارد. در روزهای نخست، نظم در خواب و بیداری، ورزش صبحگاهی، حضور در جلسات و شروع پروتکل درمان زیر نظر راهنما، پایه‌های سفر را می‌سازد. هیچ‌گاه مقدار و ساعت مصرف را بدون هماهنگی با راهنما تغییر نده. سفر اول از قطع مصرف می‌گذرد و سفر دوم، رسیدن به خویشتن است.",
+    text: "راهنمای تازه‌واردین، نخستین نقشهٔ راه برای روزهای اول درمان است. پنج نکتهٔ مهم: ۱) اعتیاد یک بیماری است و درمان دارد؛ برای درمان باید حتماً یک راهنما انتخاب کنی. ۲) نظم، پایهٔ درمان است: خواب و بیداری مشخص، ورزش صبحگاهی، تغذیهٔ درست و حضور به‌موقع در جلسات. ۳) مقدار و ساعت مصرف شربت OT را هیچ‌گاه بدون هماهنگی با راهنما تغییر نده. ۴) در سفر اول، مصرف طبق جدول پروتکل پله‌پله کاهش می‌یابد؛ صبر و پیگیری، کلید عبور از این مرحله است. ۵) سفر دوم بعد از رهایی از مواد آغاز می‌شود: بازسازی شخصیت و شناخت خود. و بدان که در این مسیر تنها نیستی؛ راهنما و همسفران کنار تو هستند. ما می‌توانیم.",
   },
   {
     id: "lib-04",
     title: "چهارده وادی عشق",
     sub: "کتاب • ۱۴ وادی • متن و صوت •",
     color: NAV_COLORS.journal,
-    text: "کتاب عشق؛ چهارده وادی برای رسیدن به خود. سفر دوم مسافر، بعد از قطع مواد آغاز می‌شود و از چهارده وادی می‌گذرد. هر وادی، ایستگاهی برای رشد و تعادل است؛ از وادی آغاز و تفکر، تا عشق‌ورزی، صلح و آرامش و در پایان خدمت به دیگران. درمان اعتیاد فقط قطع مصرف نیست؛ بازسازی شخصیت و یافتن معنا در زندگی است.",
+    text: "کتاب «چهارده وادی عشق» (کتاب عشق) نوشتهٔ مهندس حسین دژاکام است؛ کتابِ سفر دوم، یعنی مرحلهٔ شناخت خویش که بعد از رهایی از مصرف مواد آغاز می‌شود. ترک مواد، نیمی از راه است و نیمهٔ دیگر، ساختن دوبارهٔ انسان. این کتاب این نیمهٔ دوم را در چهارده ایستگاه (وادی) شرح می‌دهد: وادی اول «آغاز» می‌گوید همه‌چیز از یک تصمیم درست شروع می‌شود؛ وادی‌های میانی، تفکر، مسئولیت‌پذیری، صبر، تسلیم و صلح درون را می‌آموزند؛ و وادی پایانی، انسان را به عشق‌ورزی و خدمت به دیگران می‌رساند. هر وادی یک درس برای زندگی سالم است؛ خواندن آن برای مسافران و همسفران هر دو آموزنده است.",
   },
   {
     id: "lib-05",
     title: "جهان‌بینی",
     sub: "جهان‌بینی ۱ و ۲ • تفکر درست، زندگی درست •",
     color: NAV_COLORS.plan,
-    text: "اگر تفکرِ ما این بگوئیم که «مشکل من حل نمی‌شود»، همین را ساخته‌ایم و حل نخواهد شد؛ اگر تفکرِ ما این بگوئیم که «بیماری من خوب نمی‌شود»، خوب نخواهد شد. باید در وجودمان امید و تصویر مثبت بسازیم. جهان‌بینی ما، راهنمای انتخاب‌های ماست؛ با تفکر درست، زندگی درست ساخته می‌شود.",
+    text: "جهان‌بینی، عینکی است که با آن دنیا را می‌بینیم؛ اگر تفکر ما بگوید «مشکل من حل نمی‌شود»، همین را ساخته‌ایم و مشکل حل نخواهد شد؛ اگر بگوید «بیماری من درمان دارد»، راه درمان باز می‌شود. کتاب‌های جهان‌بینی ۱ و ۲ می‌آموزند که پیش از هر تصمیم باید تفکر کرد؛ تفکر، انتخاب می‌آورد و انتخاب، سرنوشت را می‌سازد. با شناخت خود، ایمان به قدرت مطلق و ساختن تصویر مثبت از آینده، زندگی سالم ساخته می‌شود. برای همین در کنگره ۶۰ کلاس‌های جهان‌بینی، ادامهٔ درمان‌اند: درمان فقط دارو نیست؛ فکرِ سالم هم درمان است.",
   },
   {
     id: "dst",
@@ -943,21 +972,21 @@ const LIB_ITEMS: LibItem[] = [
     title: "قوانین کنگره ۶۰",
     sub: "حرمت‌ها و قوانین مجموعه.",
     color: NAV_COLORS.lib,
-    text: "حرمت‌های کنگره ۶۰: احترام به رأی اکثریت لژیون، نظم در حضور و غیبت، عدم قضاوت دربارهٔ همسفران، پرهیز از سیاست‌بازی و حفظ اسرار افراد داخل مجموعه. قوانین، پشتوانهٔ آرامش و امنیت جمع است و رعایت آن‌ها شرط ادامهٔ سفر در لژیون است.",
+    text: "کنگره ۶۰ چهارده قانون دارد؛ چند نمونه: کنگره تشکیلات تحقیقاتی مستقلی است که با راهنمایی نیروهای ماوراءالطبیعه و توکل به قدرت مطلق حرکت می‌کند؛ شرط عضویت، پذیرفتن اصول و قوانین و تعهد به رهایی از دام اعتیاد است؛ گردانندگان از بین مسافران و همسفران انتخاب می‌شوند؛ به همهٔ خواهانِ رهایی، مساوات اطلاق می‌گردد؛ منابع مالی، کمک‌های داوطلبانهٔ اعضاست؛ و کنگره در موضوعات خارج از اهدافش نظری ندارد. حرمت‌ها هم جزو قوانین‌اند: در جلسات دروغ، غیبت، بحث سیاسی، قطع حرف دیگران، تلفن بدون مجوز راهنما و دریافت و پرداخت پول بدون هماهنگی ممنوع است. رعایت قوانین، پشتوانهٔ آرامش و امنیت جمع است.",
   },
   {
     id: "shast",
     title: "۶۰ درجه",
     sub: "کتاب ۶۰ درجه.",
     color: NAV_COLORS.journal,
-    text: "کتاب «۶۰ درجه» مجموعه سخنان و آموزش‌های مهندس دژاکام است؛ زاویهٔ نگاه ما به مسائل زندگی را تغییر می‌دهد. همان ماجرایی که با یک نگاهِ ۶۰ درجه‌ای دیده می‌شود، معنای تازه‌ای پیدا می‌کند؛ تفکر، تصمیم و اجرا — مثلث آموزشی کنگره ۶۰ — کلید تغییر نگاه است.",
+    text: "کتاب «۶۰ درجه» روایت سفر مهندس حسین دژاکام و همراهانش برای عبور از «منطقهٔ ۶۰ درجه زیر صفر» — یعنی پایین‌ترین نقطهٔ زندگیِ مصرف — تا بازگشت به زندگی سالم است. نام کتاب از این ایده گرفته شده که گاهی با تغییر ۶۰ درجه‌ای زاویهٔ نگاه، همان مسئلهٔ قبلی معنای دیگری پیدا می‌کند. این کتاب با قصه‌گویی و مثال‌های ساده، مثلث تفکر، تصمیم و اجرا را آموزش می‌دهد و نشان می‌دهد انسان با شناخت خود و ایمان به قدرت مطلق، از هر نقطهٔ تاریکی می‌تواند بازگردد.",
   },
   {
     id: "behtarin",
     title: "بهترین راه",
     sub: "سخنان آموزشی کنگرهٔ ۶۰.",
     color: NAV_COLORS.plan,
-    text: "بهترین راه برای عبور از اعتیاد، راهِ میانه و اصولی است: نه خشونت و نه تسلیم؛ بلکه شناخت، نظم، پیگیری درمان زیر نظر راهنما و حضور پیوسته در جلسات. تجربه نشان داده کسانی که با نظم و صبر پیش می‌روند، به آرامش پایدار می‌رسند.",
+    text: "جزوهٔ «بهترین راه» پیامی روشن دارد: بسیاری تصور می‌کنند بهترین راه، کوتاه‌ترین راه است و به درستی یا نادرستی آن توجه نمی‌کنند؛ راهی را می‌روند که زودتر به خواسته‌هایشان برساند؛ برای همین مشق‌هایشان ناتمام و بی‌محتوا می‌ماند و مجبورند دوباره بنویسند. راه نیمه‌تمام، مثل غذای نیمه‌پخته یا خام است: قابل خوردن نیست. در درمان اعتیاد هم راه‌های میان‌بُر به بازگشتِ مصرف ختم می‌شوند؛ راه درست، راهِ اصولی درمان است: پذیرش بیماری، درمان با متد DST زیر نظر راهنما، نظم و پیگیری. نتیجهٔ این راه، ماندگار است.",
   },
   {
     id: "mosalas",
@@ -971,7 +1000,7 @@ const LIB_ITEMS: LibItem[] = [
     title: "مصرف‌کننده کیست؟",
     sub: "شناخت بیماری اعتیاد.",
     color: NAV_COLORS.home,
-    text: "مصرف‌کننده کسی است که در به‌کارگیری مواد مخدر، اختیار خود را از دست داده است؛ جسم به ماده وابسته شده و تفکر نیز در خدمت ادامهٔ مصرف قرار می‌گیرد. شناخت این وضعیت، اولین قدم درمان است؛ اعتیاد بیماری است، نه لذت‌جویی — و بیماری، درمان دارد.",
+    text: "مصرف‌کنندهٔ مواد مخدر، فردی بیمار است که در اثر استفادهٔ مکرر از مواد، در ساختار وجودی خود تخریب پدید آورده و زندگی خود و اطرافیانش را آشفته کرده است؛ چه شروع مصرف دانسته باشد و چه ندانسته، فرقی نمی‌کند، چون هر دو نشانهٔ عدم آگاهی است. این تخریب در جسم، سیستم ضربان قلب، سیستم ایمنی و تولید مخدرهای طبیعی بدن را مختل می‌کند و در روان و جهان‌بینی، جهانی مملو از ترس، اضطراب، نگرانی و حقارت می‌سازد. برای اصلاح ۹۰٪ از این ساخته‌ها، حداقل ۱۰ ماه درمان لازم است. شناخت این واقعیت، اولین قدم درمان است: اعتیاد بیماری است، نه لذت‌جویی؛ و بیماری، درمان دارد.",
   },
 ];
 
@@ -1648,18 +1677,7 @@ const EXAM_CARDS: { id: ExamCardId; icon: typeof BookOpen; color: string; title:
   { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "سؤال‌های کوتاه‌متن با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
 ];
 
-/* منابع جدید درخواستی (عکس «منابع آزمون») — هنوز فایل سؤالاتشان به بانک اضافه نشده؛
-   با رسیدن فایل‌ها (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول و دوم و…) سؤال‌هایشان ساخته و همین‌جا فعال می‌شود */
-const PENDING_SOURCES = [
-  "کنگره ۶۰ چیست",
-  "قوانین کنگره ۶۰",
-  "حرمت کنگره ۶۰",
-  "سفر اول",
-  "سفر دوم",
-  "به‌سر بردن راه",
-  "تصاویر کتاب ۶۰ درجه",
-  "معرفی کنگره ۶۰",
-];
+/* منابع جزوه‌ای کنگره ۶۰ — سؤالاتشان به بانک اضافه شده و در چیپ‌های «انتخاب منبع» فعال‌اند */
 
 function ExamScreen({ c }: { c: ThemeColors }) {
   const [bank, setBank] = useState<Bank | null>(null);
@@ -1721,6 +1739,85 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   const QA_SHORT_MAX = 120;
   const shortQaCount = useMemo(() => bankQaUsable.filter((q) => (q.a ?? "").length <= QA_SHORT_MAX).length, [bankQaUsable]);
 
+  /* ——— آزمون شبانه (پیش‌نمایش وب) ——— */
+  const todayKey = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  };
+  const [night, setNight] = useState<{ enabled: boolean; hour: number; minute: number }>({
+    enabled: false,
+    hour: 21,
+    minute: 30,
+  });
+  const [nightDone, setNightDone] = useState(false);
+  const [nightBanner, setNightBanner] = useState(false);
+  const setNightExam = (patch: Partial<{ enabled: boolean; hour: number; minute: number }>) => {
+    const next = { ...night, ...patch };
+    setNight(next);
+    try {
+      localStorage.setItem("hamrah_night_exam", JSON.stringify(next));
+    } catch {
+      /* بی‌صدا */
+    }
+    if (next.enabled && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  };
+  const markNightDone = () => {
+    try {
+      localStorage.setItem("hamrah_night_done", todayKey());
+    } catch {
+      /* بی‌صدا */
+    }
+    setNightDone(true);
+  };
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        const raw = JSON.parse(localStorage.getItem("hamrah_night_exam") ?? "null");
+        if (raw && typeof raw.enabled === "boolean") setNight(raw);
+        setNightDone(localStorage.getItem("hamrah_night_done") === todayKey());
+      } catch {
+        /* بی‌صدا */
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (!night.enabled) return;
+      const now = new Date();
+      const due = new Date();
+      due.setHours(night.hour, night.minute, 0, 0);
+      let doneToday = false;
+      let shownToday = false;
+      try {
+        doneToday = localStorage.getItem("hamrah_night_done") === todayKey();
+        shownToday = localStorage.getItem("hamrah_night_shown") === todayKey();
+      } catch {
+        /* بی‌صدا */
+      }
+      if (now >= due && !doneToday && !shownToday) {
+        try {
+          localStorage.setItem("hamrah_night_shown", todayKey());
+        } catch {
+          /* بی‌صدا */
+        }
+        setNightBanner(true);
+        if ("Notification" in window && Notification.permission === "granted") {
+          try {
+            new Notification("🌙 آزمون شبانه", {
+              body: "امشب هنوز آزمون ندادی! چند دقیقه وقت بگذار — ما می‌توانیم ✋",
+            });
+          } catch {
+            /* بی‌صدا */
+          }
+        }
+      }
+    }, 30000);
+    return () => clearInterval(iv);
+  }, [night]);
+
   const startQuiz = (opts?: { len?: number; cats?: Set<string>; review?: boolean }) => {
     if (!bank) return;
     if (opts?.review) {
@@ -1743,9 +1840,18 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     setIsReview(false);
     const cats = opts?.cats ?? quizCats;
     const len = opts?.len ?? quizLen;
-    const core = cats.size === 0 || cats.has(CORE_CAT) ? CORE_DST : [];
+    const core =
+      cats.size === 0 || cats.has(CORE_CAT)
+        ? CORE_DST.map((q, i) => ({ ...q, id: `core-${String(i + 1).padStart(2, "0")}` }))
+        : [];
     const fromBank = bankMcqUsable.filter((m) => cats.size === 0 || cats.has(m.cat)).map(mcqToQuiz);
-    const list = shuffle([...core, ...fromBank]).slice(0, Math.min(len, core.length + fromBank.length));
+    /* چرخش هوشمند: اول سؤال‌های تازه — سؤال‌های سشن قبل آخر صف می‌آیند */
+    const ordered = rotateFresh(
+      [...core, ...fromBank].map((q) => [q.id ?? q.question, q] as [string, QuizItem]),
+      loadRecent("quiz"),
+    );
+    const list = ordered.slice(0, Math.min(len, ordered.length));
+    saveRecent("quiz", list.map((q) => q.id ?? q.question));
     if (list.length === 0) {
       setNoKeyMsg(true);
       return;
@@ -1759,11 +1865,12 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     setPhase("running");
   };
   const startFlash = () => {
-    const list = shuffle(
-      bankQaUsable.filter(
-        (q) => (flashCats.size === 0 || flashCats.has(q.cat)) && (!flashShortOnly || (q.a ?? "").length <= QA_SHORT_MAX),
-      ),
+    const idPool = bankQaUsable.filter(
+      (q) => (flashCats.size === 0 || flashCats.has(q.cat)) && (!flashShortOnly || (q.a ?? "").length <= QA_SHORT_MAX),
     );
+    /* چرخش هوشمند: سؤال‌های تازه اول */
+    const list = rotateFresh(idPool.map((q) => [q.id, q] as [string, BankQa]), loadRecent("flash"));
+    saveRecent("flash", list.map((q) => q.id));
     setFlashList(list);
     setFlashScores(new Array(list.length).fill(null));
     setFIndex(0);
@@ -1814,6 +1921,37 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   return (
     <div className="flex flex-col gap-3">
       <ScreenHeader c={c} title="آزمون" subtitle="آزمون تستی و تمرین تشریحی — از ده‌ها آزمون واقعی کنگره ۶۰" accent={NAV_COLORS.exam} />
+
+      {phase === "start" && nightBanner && (
+        <div className="rounded-2xl p-3.5" style={{ background: "#7C3AED14", border: "1px solid #7C3AED66" }}>
+          <p className="text-[12.5px] font-black" style={{ color: "#6D28D9" }}>
+            🌙 آزمون شبانه — امشب هنوز آزمون ندادی!
+          </p>
+          <p className="mt-1 text-[11px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+            چند دقیقه وقت بگذار و آزمون شب را بده؛ سؤال‌های امشب با دفعهٔ قبل فرق دارند. ما می‌توانیم ✋
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => {
+                setNightBanner(false);
+                setMode("quiz");
+                startQuiz({ len: 5 });
+              }}
+              className="flex-1 rounded-xl py-2.5 text-[12.5px] font-bold active:scale-[0.98]"
+              style={{ background: "#7C3AED", color: "#FFFFFF" }}
+            >
+              شروع آزمون شبانه (۵ سؤال)
+            </button>
+            <button
+              onClick={() => setNightBanner(false)}
+              className="rounded-xl border px-4 py-2.5 text-[12.5px] font-bold"
+              style={{ borderColor: c.outline, color: c.onBg, background: c.surface }}
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
 
       {phase === "start" && (
         <>
@@ -1929,22 +2067,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                     <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
                       هیچ دسته‌ای انتخاب نشود = همهٔ منابع
                     </p>
-                    {/* منابع جدید درخواستی — تا رسیدن فایل سؤالات، غیرفعال */}
-                    <p className="mt-2 text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
-                      منابع در راه — با رسیدن فایل سؤالات، فعال می‌شوند:
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {PENDING_SOURCES.map((cat) => (
-                        <span
-                          key={cat}
-                          aria-disabled="true"
-                          className="w-[31%] rounded-2xl border border-dashed px-1 py-3.5 text-center text-[11.5px] leading-5"
-                          style={{ background: c.surfaceVariant, borderColor: `${c.outlineVariant}`, color: c.onSurfaceVariant, opacity: 0.75 }}
-                        >
-                          ⏳ {cat}
-                        </span>
-                      ))}
-                    </div>
+                    {/* منابع جزوه‌ای (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول و دوم، بهترین راه، مصرف‌کننده کیست) اکنون در چیپ‌های بالا فعال‌اند */}
                     <p className="mt-1 text-center text-[12.5px] font-bold" style={{ color: c.onBg }}>
                       تعداد سؤال:
                     </p>
@@ -2098,6 +2221,66 @@ function ExamScreen({ c }: { c: ThemeColors }) {
             );
           })}
 
+          {/* کارت آزمون شبانه */}
+          <SectionCard c={c} title="آزمون شبانه 🌙" accent="#7C3AED">
+            <p className="text-[11.5px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
+              هر شب در ساعت انتخابی، اگر آن روز هنوز آزمون یا تمرینی نداده باشی، یادآوری می‌فرستد: «آزمون شب را هنوز ندادی!». با اولین آزمون یا تمرین همان روز، دیگر پیامی نمی‌آید.
+              (در نسخهٔ اندروید، یادآوری واقعی نوتیفیکیشن می‌شود — حتی وقتی برنامه بسته است.)
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="flex-1">
+                <p className="text-[12.5px] font-bold" style={{ color: night.enabled ? "#6D28D9" : c.onSurfaceVariant }}>
+                  {night.enabled ? "یادآوری فعال است" : "یادآوری خاموش است"}
+                </p>
+                <p className="mt-0.5 text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+                  {night.enabled
+                    ? `روزانه ساعت ${faNum(night.hour)}:${night.minute === 0 ? "۰۰" : "۳۰"}${nightDone ? " — امروز آزمون دادی ✅" : " — امروز هنوز آزمون ندادی"}`
+                    : "با فعال‌کردن، ساعت یادآوری را انتخاب کن"}
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={night.enabled}
+                aria-label="فعال‌سازی یادآوری آزمون شبانه"
+                onClick={() => setNightExam({ enabled: !night.enabled })}
+                className="relative h-7 w-12 rounded-full transition-colors"
+                style={{ background: night.enabled ? "#7C3AED" : c.surfaceVariant }}
+              >
+                <span
+                  className="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all"
+                  style={{ right: night.enabled ? 4 : 28 }}
+                />
+              </button>
+            </div>
+            {night.enabled && (
+              <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+                {[
+                  [21, 0],
+                  [21, 30],
+                  [22, 0],
+                  [22, 30],
+                  [23, 0],
+                ].map(([h, m]) => {
+                  const sel = night.hour === h && night.minute === m;
+                  return (
+                    <button
+                      key={`${h}-${m}`}
+                      onClick={() => setNightExam({ enabled: true, hour: h, minute: m })}
+                      className="rounded-full border px-3.5 py-1.5 text-[12px] font-bold active:scale-[0.98]"
+                      style={{
+                        background: sel ? "#7C3AED14" : c.surface,
+                        borderColor: sel ? "#7C3AED" : c.outlineVariant,
+                        color: sel ? "#6D28D9" : c.onSurfaceVariant,
+                      }}
+                    >
+                      {faNum(h)}:{m === 0 ? "۰۰" : "۳۰"}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </SectionCard>
+
           <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
             {bank
               ? `${faNum(bankMcqUsable.length)} سؤال تستی کلیددار + ${faNum(CORE_DST.length)} سؤال متد DST · ${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار`
@@ -2115,7 +2298,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
           {/* کارت توضیح پایین — متن مصوب */}
           <div className="rounded-2xl p-3.5" style={{ background: "#FCE7F3", border: "1px solid #F9A8D4" }}>
             <p className="text-[11.5px] leading-6" style={{ color: "#9D174D", textAlign: "justify" }}>
-              سؤال‌ها هر بار به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شوند؛ زیر هر سؤال برچسب منبع می‌آید (مثلاً «وادی هشتم») و چیزی که غلط جواب بدی دفعهٔ بعد بیشتر تکرار می‌شود.
+              هوشمندسازی آزمون: هر بار که وارد آزمون شوی، سؤال‌ها تصادفی چیده می‌شوند و تا جای ممکن از سؤال‌های تازه انتخاب می‌شوند — سؤال‌های سشن قبل، آخرِ صف می‌آیند تا تکرار نشوند. زیر هر سؤال برچسب منبع می‌آید (مثلاً «قوانین کنگره ۶۰») و چیزی که غلط جواب بدی، دفعهٔ بعد بیشتر تکرار می‌شود.
             </p>
           </div>
 
@@ -2201,6 +2384,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                       if (qIndex + 1 < quizList.length) goQuiz(qIndex + 1);
                       else {
                         recordWrongs();
+                        markNightDone();
                         setPhase("done");
                       }
                     }}
@@ -2325,7 +2509,10 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                             return next;
                           });
                           if (fIndex + 1 < flashList.length) goFlash(fIndex + 1);
-                          else setPhase("done");
+                          else {
+                            markNightDone();
+                            setPhase("done");
+                          }
                         }}
                         className="rounded-xl px-4 py-2.5 text-[12.5px] font-bold active:scale-[0.98]"
                         style={{ background: GREEN_OK, color: "#FFFFFF" }}
@@ -2340,7 +2527,10 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                             return next;
                           });
                           if (fIndex + 1 < flashList.length) goFlash(fIndex + 1);
-                          else setPhase("done");
+                          else {
+                            markNightDone();
+                            setPhase("done");
+                          }
                         }}
                         className="rounded-xl border px-4 py-2.5 text-[12.5px] font-bold active:scale-[0.98]"
                         style={{ borderColor: c.outline, color: c.onBg, background: c.surface }}
@@ -2365,7 +2555,10 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                   ✓ {faNum(known)} · ✗ {faNum(unknown)}
                 </p>
                 <button
-                  onClick={() => setPhase("done")}
+                  onClick={() => {
+                    markNightDone();
+                    setPhase("done");
+                  }}
                   className="rounded-xl border px-4 py-2 text-[12.5px] font-bold"
                   style={{ borderColor: c.outline, color: NAV_COLORS.exam, background: c.surface }}
                 >
@@ -3014,8 +3207,12 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
       </div>
 
       {LIB_ITEMS.map((item) => {
-        /* متن چرخشی کارت — با هر ورود یک قطعهٔ تازه از همان کتاب؛ اگر بانک نداشت، متن ثابت */
-        const txt = cardTexts[item.id] ?? item.text;
+        /* متن کارت = معرفی کامل و تمیز کتاب (همیشه خوانا و کامل) + قطعهٔ چرخشی از متن اصلی همان کتاب */
+        const passage = cardTexts[item.id];
+        const txt =
+          passage && passage !== item.text
+            ? `${item.text}\n\n— قطعه‌ای از متن اصلی «${item.title}»:\n${passage}`
+            : item.text;
         return (
           <LibCardView
             key={item.id}
@@ -3258,7 +3455,7 @@ function SettingsScreen(props: {
           مسافر — همراه درمان اعتیاد
         </p>
         <p className="text-[11px] leading-6" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
-          نسخه ۱٫۵٫۶ — اپلیکیشن آفلاین و متن‌باز
+          نسخه ۱٫۵٫۷ — اپلیکیشن آفلاین و متن‌باز
           <br />
           پروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰
         </p>

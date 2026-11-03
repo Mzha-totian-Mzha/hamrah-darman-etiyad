@@ -21,8 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
@@ -34,8 +37,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +55,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import ir.mosafir.recovery.data.BankMcq
 import ir.mosafir.recovery.data.BankQa
+import ir.mosafir.recovery.data.NightExamScheduler
+import ir.mosafir.recovery.data.NightExamStore
 import ir.mosafir.recovery.data.QuestionBank
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.OneLineText
@@ -65,26 +77,12 @@ import kotlin.random.Random
 private val CorrectGreen = Color(0xFF2E7D32)
 private val WrongRed = Color(0xFFC62828)
 
-/**
- * منابع جدید درخواستی (عکس «منابع آزمون») — هنوز فایل سؤالاتشان به بانک اضافه نشده؛
- * با رسیدن فایل‌ها (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول و دوم و…) سؤال‌هایشان ساخته و فعال می‌شود.
- */
-private val PENDING_SOURCES = listOf(
-    "کنگره ۶۰ چیست",
-    "قوانین کنگره ۶۰",
-    "حرمت کنگره ۶۰",
-    "سفر اول",
-    "سفر دوم",
-    "به‌سر بردن راه",
-    "تصاویر کتاب ۶۰ درجه",
-    "معرفی کنگره ۶۰"
-)
-
 /** حداکثر طول پاسخ «سؤال کوتاه‌متن» در تمرین تشریحی */
 private const val QA_SHORT_MAX = 120
 
 /** یک سؤال تستیِ یکپارچه (هستهٔ متد DST یا بانک) */
 private data class QuizItem(
+    val id: String,
     val question: String,
     val options: List<String>,
     val correctIndex: Int,
@@ -95,6 +93,7 @@ private data class QuizItem(
 /** سؤال‌های هستهٔ متد DST — با توضیح آموزشی؛ همیشه در دسترس */
 private val CORE_DST: List<QuizItem> = listOf(
     QuizItem(
+        id = "core-01",
         "در متد DST، حرف S به چه معناست؟",
         listOf("شروع درمان", "پله ۲۱ روزه", "سقف مصرف", "ثبت روزانه"),
         1,
@@ -102,6 +101,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-02",
         "ضریب کاهش مصرف در هر پله متد DST چقدر است؟",
         listOf("۰٫۵", "۰٫۸", "۱٫۲", "۲"),
         1,
@@ -109,6 +109,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-03",
         "فاصله وعده‌های مصرف در متد DST چند ساعت است؟",
         listOf("۶ ساعت", "۸ ساعت", "۱۲ ساعت", "۲۴ ساعت"),
         1,
@@ -116,6 +117,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-04",
         "سقف OT در برنامه ۶–۳ چند سی‌سی در روز است؟",
         listOf("۶ سی‌سی", "۷٫۵ سی‌سی", "۹ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
@@ -123,6 +125,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-05",
         "توقف تثبیت روی سقف مصرف طبق اصلاحیه چند روز است؟",
         listOf("۷ روز", "۱۴ روز", "۲۲ روز", "۳۰ روز"),
         2,
@@ -130,6 +133,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-06",
         "هر ۱ سی‌سی شربت اپیوم تینکچر (OT) معادل چند میلی‌گرم تریاک خوراکی است؟",
         listOf("۵۰ میلی‌گرم", "۱۰۰ میلی‌گرم", "۲۰۰ میلی‌گرم", "۵۰۰ میلی‌گرم"),
         1,
@@ -137,6 +141,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-07",
         "در برنامه ۶–۳ با مصرف کشیدنی چه باید کرد؟",
         listOf("کاهش تدریجی مصرف کشیدنی", "قطع همان شب هفته اول", "قطع بلافاصله و شروع همزمان OT", "فقط ثبت روزانه کافی است"),
         2,
@@ -144,6 +149,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-08",
         "پله آخر برنامه (روزانه ۰٫۳cc) چند روز ادامه دارد؟",
         listOf("۳ روز", "۷ روز ثابت", "۲ تا ۲۱ روز", "۲۱ روز ثابت"),
         2,
@@ -151,6 +157,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-09",
         "سقف OT در درمان الکل چند سی‌سی در روز است؟",
         listOf("۴٫۵ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
@@ -158,6 +165,7 @@ private val CORE_DST: List<QuizItem> = listOf(
         "متد DST"
     ),
     QuizItem(
+        id = "core-10",
         "در درمان هروئین، شروع OT از روز نخست با روزانه چند سی‌سی است؟",
         listOf("۳ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"),
         1,
@@ -169,6 +177,7 @@ private val CORE_DST: List<QuizItem> = listOf(
 private const val CORE_CAT = "متد DST"
 
 private fun BankMcq.toQuizItem(): QuizItem = QuizItem(
+    id = id,
     question = q,
     options = opts,
     correctIndex = ansIndex,
@@ -244,6 +253,7 @@ private object WrongStore {
                 val oa = o.optJSONArray("options") ?: return@mapNotNull null
                 val opts = (0 until oa.length()).map { oa.optString(it) }
                 QuizItem(
+                    id = o.optString("id"),
                     o.optString("question"),
                     opts,
                     o.optInt("correctIndex"),
@@ -276,6 +286,48 @@ private object WrongStore {
             /* بی‌صدا */
         }
     }
+}
+
+/**
+ * چرخش هوشمند سؤال‌ها — آخرین سؤال‌های دیده‌شده (تا ۴۰۰) ذخیره می‌شود تا
+ * هر بار ورود به آزمون، تا جای ممکن سؤال تازه بیاید و سؤال‌های سشن قبل تکرار نشوند.
+ */
+private object RecentStore {
+    private const val MAX = 400
+
+    private fun prefs(ctx: android.content.Context) =
+        ctx.getSharedPreferences("mosafir_exam_recent", android.content.Context.MODE_PRIVATE)
+
+    fun load(ctx: android.content.Context, mode: String): List<String> {
+        return try {
+            val arr = org.json.JSONArray(prefs(ctx).getString("recent_$mode", "[]") ?: "[]")
+            (0 until arr.length()).map { arr.optString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun append(ctx: android.content.Context, mode: String, ids: List<String>) {
+        try {
+            val merged = (load(ctx, mode) + ids).distinct().takeLast(MAX)
+            val arr = org.json.JSONArray()
+            merged.forEach { arr.put(it) }
+            prefs(ctx).edit().putString("recent_$mode", arr.toString()).apply()
+        } catch (e: Exception) {
+            /* بی‌صدا */
+        }
+    }
+}
+
+/**
+ * چینش سشن جدید: اول سؤال‌های تازه (که در سشن‌های اخیر نیامده‌اند)، بعد سؤال‌های دیده‌شده —
+ * هر گروه خودش شافل می‌شود تا ترتیب همیشه عوض شود.
+ */
+private fun <T> rotateFresh(pool: List<Pair<String, T>>, recent: List<String>): List<T> {
+    val seen = recent.toHashSet()
+    val fresh = pool.filter { it.first !in seen }.map { it.second }.shuffled(Random(System.nanoTime()))
+    val old = pool.filter { it.first in seen }.map { it.second }.shuffled(Random(System.nanoTime()))
+    return fresh + old
 }
 
 /** پنج کارت اصلی صفحهٔ شروع آزمون — طرح مصوب «عکس خوب» + حفظ امکانات فعلی */
@@ -448,8 +500,12 @@ fun ExamScreen() {
         val fromBank = bank.mcq
             .filter { cats.isEmpty() || it.cat in cats }
             .map { it.toQuizItem() }
-        val pool = (core + fromBank).shuffled(Random(System.nanoTime()))
-        quizList = pool.take(len.coerceAtMost(pool.size))
+        val idPool = (core + fromBank).map { it.id to it }
+        /* چرخش هوشمند: اول سؤال‌های تازه — سؤال‌های سشن قبل آخر لیست می‌آیند */
+        val ordered = rotateFresh(idPool, RecentStore.load(context, "quiz"))
+        val picked = ordered.take(len.coerceAtMost(ordered.size))
+        RecentStore.append(context, "quiz", picked.map { it.id })
+        quizList = picked
         qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
         phase = "running"
     }
@@ -468,11 +524,46 @@ fun ExamScreen() {
     }
 
     fun startFlash() {
-        flashList = bank.qa
+        val idPool = bank.qa
             .filter { (flashCats.isEmpty() || it.cat in flashCats) && (!flashShortOnly || it.a.length <= QA_SHORT_MAX) }
-            .shuffled(Random(System.nanoTime()))
+            .map { it.id to it }
+        /* چرخش هوشمند: سؤال‌های تازه اول — برخلاف دفعهٔ قبل که شافلِ ساده بود */
+        flashList = rotateFresh(idPool, RecentStore.load(context, "flash"))
+        RecentStore.append(context, "flash", flashList.map { it.id })
         fIndex = 0; reveal = false; known = 0; unknown = 0
         phase = "running"
+    }
+
+    /* ——— آزمون شبانه ——— */
+    var nightEnabled by remember { mutableStateOf(NightExamStore.load(context).enabled) }
+    var nightHour by remember { mutableIntStateOf(NightExamStore.load(context).hour) }
+    var nightMinute by remember { mutableIntStateOf(NightExamStore.load(context).minute) }
+    var nightDoneToday by remember { mutableStateOf(NightExamStore.isDoneToday(context)) }
+    val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    /* با هر ورود به تب آزمون، زنگ شبانه دوباره تنظیم می‌شود (ضدِ ازدست‌رفتن بعد از ری‌استارت) */
+    LaunchedEffect(Unit) {
+        NightExamScheduler.ensureChannel(context)
+        NightExamScheduler.scheduleNext(context)
+        nightDoneToday = NightExamStore.isDoneToday(context)
+    }
+
+    fun setNightExam(enabled: Boolean, hour: Int = nightHour, minute: Int = nightMinute) {
+        nightEnabled = enabled; nightHour = hour; nightMinute = minute
+        NightExamStore.save(context, NightExamStore.NightExamSettings(enabled, hour, minute))
+        NightExamScheduler.ensureChannel(context)
+        NightExamScheduler.scheduleNext(context)
+        if (enabled && Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun markExamDoneToday() {
+        NightExamStore.markDoneToday(context)
+        nightDoneToday = true
     }
 
     val listState = rememberLazyListState()
@@ -557,40 +648,6 @@ fun ExamScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(top = 6.dp)
                                         )
-                                        // منابع جدید درخواستی — تا رسیدن فایل سؤالات، غیرفعال (چیپ خط‌چین)
-                                        Text(
-                                            text = "منابع در راه — با رسیدن فایل سؤالات، فعال می‌شوند:",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(top = 8.dp)
-                                        )
-                                        FlowRow(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 6.dp)
-                                        ) {
-                                            PENDING_SOURCES.forEach { name ->
-                                                Surface(
-                                                    shape = RoundedCornerShape(16.dp),
-                                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                                    border = BorderStroke(
-                                                        1.dp,
-                                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                                                    )
-                                                ) {
-                                                    Text(
-                                                        text = "⏳ $name",
-                                                        fontSize = 11.5.sp,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
                                         Text(
                                             text = "تعداد سؤال:",
                                             style = MaterialTheme.typography.labelLarge,
@@ -728,6 +785,72 @@ fun ExamScreen() {
                         }
                     }
                 }
+                item(key = "night") {
+                    val nightColor = Color(0xFF7C3AED)
+                    SectionCard(title = "آزمون شبانه 🌙", accent = nightColor) {
+                        Text(
+                            text = "هر شب در ساعت انتخابی، اگر آن روز هنوز آزمون یا تمرینی نداده باشی، یادآوری می‌فرستد: «آزمون شب را هنوز ندادی!». با اولین آزمون یا تمرین همان روز، دیگر پیامی نمی‌آید. آرام و بدون استرس — فقط چند دقیقه مرور.",
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (nightEnabled) "یادآوری فعال است" else "یادآوری خاموش است",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (nightEnabled) nightColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = if (nightEnabled)
+                                        "روزانه ساعت ${formatNumber(nightHour)}:${if (nightMinute == 0) "۰۰" else "۳۰"}" +
+                                            if (nightDoneToday) " — امروز آزمون دادی ✅" else " — امروز هنوز آزمون ندادی"
+                                    else
+                                        "با فعال‌کردن، ساعت یادآوری را انتخاب کن",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Switch(
+                                checked = nightEnabled,
+                                onCheckedChange = { on -> setNightExam(enabled = on) }
+                            )
+                        }
+                        if (nightEnabled) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp)
+                            ) {
+                                listOf(21 to 0, 21 to 30, 22 to 0, 22 to 30, 23 to 0).forEach { (h, m) ->
+                                    val on = nightHour == h && nightMinute == m
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = if (on) nightColor.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, if (on) nightColor else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                        modifier = Modifier.clickable { setNightExam(enabled = true, hour = h, minute = m) }
+                                    ) {
+                                        Text(
+                                            text = "${formatNumber(h)}:${if (m == 0) "۰۰" else "۳۰"}",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (on) nightColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 item(key = "stats") {
                     Text(
                         text = formatNumber(bank.mcq.size) + " سؤال تستی کلیددار + " + formatNumber(CORE_DST.size) + " سؤال متد DST · " + formatNumber(bank.qa.size) + " سؤال تشریحی پاسخ‌دار",
@@ -745,7 +868,7 @@ fun ExamScreen() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "سؤال‌ها هر بار به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شوند؛ زیر هر سؤال برچسب منبع می‌آید (مثلاً «وادی هشتم») و چیزی که غلط جواب بدی دفعهٔ بعد بیشتر تکرار می‌شود.",
+                            text = "هوشمندسازی آزمون: هر بار که وارد آزمون شوی، سؤال‌ها تصادفی چیده می‌شوند و تا جای ممکن از سؤال‌های تازه انتخاب می‌شوند — سؤال‌های سشن قبل، آخرِ صف می‌آیند تا تکرار نشوند. زیر هر سؤال برچسب منبع می‌آید (مثلاً «قوانین کنگره ۶۰») و چیزی که غلط جواب بدی، دفعهٔ بعد بیشتر تکرار می‌شود.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF9D174D),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Justify,
@@ -862,6 +985,7 @@ fun ExamScreen() {
                                             answered = false
                                         } else {
                                             recordWrongs()
+                                            markExamDoneToday()
                                             phase = "done"
                                         }
                                     },
@@ -990,7 +1114,10 @@ fun ExamScreen() {
                                             known += 1
                                             if (fIndex + 1 < flashList.size) {
                                                 fIndex += 1; reveal = false
-                                            } else phase = "done"
+                                            } else {
+                                                markExamDoneToday()
+                                                phase = "done"
+                                            }
                                         },
                                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = CorrectGreen)
                                     ) { Text("بلد بودم ✓") }
@@ -999,7 +1126,10 @@ fun ExamScreen() {
                                             unknown += 1
                                             if (fIndex + 1 < flashList.size) {
                                                 fIndex += 1; reveal = false
-                                            } else phase = "done"
+                                            } else {
+                                                markExamDoneToday()
+                                                phase = "done"
+                                            }
                                         }
                                     ) { Text("بلد نبودم ✗") }
                                 }
@@ -1027,7 +1157,12 @@ fun ExamScreen() {
                                     .weight(1f)
                                     .padding(top = 12.dp)
                             )
-                            OutlinedButton(onClick = { phase = "done" }) { Text("پایان تمرین") }
+                            OutlinedButton(
+                                onClick = {
+                                    markExamDoneToday()
+                                    phase = "done"
+                                }
+                            ) { Text("پایان تمرین") }
                         }
                     }
                 }

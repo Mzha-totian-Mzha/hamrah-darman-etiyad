@@ -1,16 +1,17 @@
 {
- "mcq": 1431,
- "mcq_ok": 1425,
- "mcq_ok_with_key": 232,
+ "mcq": 1486,
+ "mcq_ok": 287,
+ "mcq_ok_with_key": 287,
  "mcq_review": 0,
- "mcq_broken_source": 2,
- "mcq_dup": 2,
- "qa": 2270,
- "qa_ok": 2076,
+ "mcq_broken_source": 0,
+ "mcq_dup": 0,
+ "qa": 2221,
+ "qa_ok": 1974,
  "qa_review": 0,
  "vision_review": {
   "date": "2026-07-04",
   "method": "manual vision transcription from 200-250dpi PDF page crops",
   "fixes_file": "manual_fixes.json"
- }
+ },
+ "r12_note": "۷ جزوهٔ جدید (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول، سفر دوم، بهترین راه، مصرف‌کننده کیست) + حذف QAهای روایی ۶۰ درجه"
 }
