@@ -142,7 +142,20 @@ const NAV_COLORS = {
   journal: "#8B5CF6",
   exam: "#EC4899",
   lib: "#F59E0B",
-  settings: "#64748B",
+  settings: "#8B5CF6", // رنگ بخش «تقویم» برنامه «پلنر من» (#8B5CF6) — طبق درخواست کاربر
+};
+
+/* رنگ نقطهٔ شماره‌دار هر مادهٔ مصرفی — الگو گرفته از چیپ‌های شماره‌دار «مواد مصرفی» (عکس ۱):
+   ۱ نارنجی، ۲ فیروزه‌ای، ۳ سرخابی، ۴ رز، ۵ بنفش، ۶ کهربایی، ۷ سبز، ۸ خاکستری */
+const SUBSTANCE_DOTS: Record<SubstanceId, string> = {
+  OPIUM_SMOKED: "#F97316",
+  OPIUM_ORAL: "#14B8A6",
+  HEROIN: "#EC4899",
+  ALCOHOL: "#E11D48",
+  STIMULANT: "#8B5CF6",
+  METHADONE: "#F59E0B",
+  TRAMADOL: "#10B981",
+  SHIREH_ORAL: "#64748B",
 };
 type NavColorKey = keyof typeof NAV_COLORS;
 
@@ -738,7 +751,7 @@ const CORE_DST: QuizItem[] = [
   { question: "در درمان هروئین، شروع OT از روز نخست با روزانه چند سی‌سی است؟", options: ["۳ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"], correctIndex: 1, explanation: "اصلاحیه ۱۳۹۸: از روز نخست روزانه ۶cc (هر وعده ۲cc)؛ سقف برنامه ۱۰٫۵cc است.", cat: "متد DST" },
 ];
 
-const CORE_CAT = "متن DST";
+const CORE_CAT = "هستهٔ DST";
 
 const mcqToQuiz = (m: BankMcq): QuizItem => {
   const keys: string[] = [];
@@ -2681,22 +2694,37 @@ function SettingsScreen(props: {
       </SectionCard>
 
       <SectionCard c={c} title="نوع ماده مصرفی" accent={NAV_COLORS.settings}>
-        <div className="flex flex-wrap justify-center gap-1.5">
-          {SUBSTANCES.map((s) => {
+        {/* کاشی‌های شماره‌دار ۲تایی در ۴ ردیف — الگو: چیپ‌های «مواد مصرفی» (عکس ۱):
+            نقطهٔ رنگی شماره‌دار + برچسب یک‌خطی، همهٔ کاشی‌ها هم‌اندازه */}
+        <div className="grid grid-cols-2 gap-2">
+          {SUBSTANCES.map((s, i) => {
             const on = settings.substance === s.id;
+            const dot = SUBSTANCE_DOTS[s.id] ?? "#9E9E9E";
             return (
               <button
                 key={s.id}
                 onClick={() => setSettings({ ...settings, substance: s.id, consumption: defaultConsumption(s.id) })}
-                className="rounded-full border px-3 py-1.5 text-[11.5px] font-medium active:scale-[0.98]"
+                className="flex items-center gap-2 rounded-2xl border px-2.5 py-3 text-right active:scale-[0.98]"
                 style={{
-                  background: on ? `${NAV_COLORS.settings}1f` : c.surface,
-                  borderColor: on ? NAV_COLORS.settings : c.outlineVariant,
-                  color: on ? NAV_COLORS.settings : c.onSurfaceVariant,
-                  fontWeight: on ? 700 : 500,
+                  background: on ? `${dot}14` : c.surface,
+                  borderColor: on ? dot : c.outlineVariant,
+                  borderWidth: on ? 1.75 : 1.25,
+                  boxShadow: on ? `0 3px 10px -4px ${dot}66` : "none",
                 }}
+                aria-pressed={on}
               >
-                {s.label}
+                <span
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10.5px] font-black text-white"
+                  style={{ background: dot }}
+                >
+                  {faNum(i + 1)}
+                </span>
+                <span
+                  className="whitespace-nowrap text-[12.5px] leading-none"
+                  style={{ color: on ? dot : c.onBg, fontWeight: on ? 800 : 600 }}
+                >
+                  {s.label}
+                </span>
               </button>
             );
           })}
@@ -3149,7 +3177,7 @@ export default function Page() {
             })}
           </nav>
 
-          {/* فلش کوچک «برو پایین» — هم‌اندازه و هم‌موقعیت عکس ۶؛ رنگش = رنگ تبِ فعال */}
+          {/* فلش کوچک «برو پایین» — بدون دایرهٔ بیرونی، فقط فلشِ لخت؛ رنگش = رنگ تبِ فعال */}
           {mounted && canScrollDown && (
             <button
               onClick={() => {
@@ -3157,10 +3185,10 @@ export default function Page() {
                 el?.scrollBy({ top: el.clientHeight * 0.85, behavior: "smooth" });
               }}
               aria-label="رفتن به پایین صفحه"
-              className="absolute bottom-[78px] left-1/2 z-20 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full shadow-md transition-transform active:scale-90"
-              style={{ background: `${NAV_COLORS[tab]}12`, border: `1.5px solid ${NAV_COLORS[tab]}`, color: NAV_COLORS[tab], backdropFilter: "blur(3px)" }}
+              className="absolute bottom-[78px] left-1/2 z-20 -translate-x-1/2 p-1 transition-transform active:scale-90"
+              style={{ color: NAV_COLORS[tab], filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))" }}
             >
-              <ChevronDown size={17} strokeWidth={2.4} />
+              <ChevronDown size={19} strokeWidth={2.6} />
             </button>
           )}
         </div>
