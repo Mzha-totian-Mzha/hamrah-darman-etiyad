@@ -501,7 +501,8 @@ fun ExamScreen() {
                                     SectionCard(title = "تنظیم آزمون ترم", accent = cd.color) {
                                         Text(
                                             text = "همهٔ منابع قاطی — مثل جلسهٔ ترم؛ ۱۰۰ سؤال استاندارد یا هر تعدادی که انتخاب کنی.",
-                                            style = MaterialTheme.typography.bodySmall
+                                            style = MaterialTheme.typography.bodySmall,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                         )
                                         Text(
                                             text = "تعداد سؤال:",
@@ -557,7 +558,8 @@ fun ExamScreen() {
                                     SectionCard(accent = cd.color) {
                                         Text(
                                             text = "۵ سؤال از همهٔ منابع، بدون هیچ تنظیمی — برای وقتی که فقط چند دقیقه وقت داری.",
-                                            style = MaterialTheme.typography.bodySmall
+                                            style = MaterialTheme.typography.bodySmall,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                         )
                                         Button(
                                             onClick = { startQuiz(len = 5, cats = emptySet()) },
@@ -573,7 +575,8 @@ fun ExamScreen() {
                                         if (wrongCount > 0) {
                                             Text(
                                                 text = formatNumber(wrongCount) + " سؤال غلط ذخیره شده است؛ هر سؤالی که این‌جا درست جواب بدهی از فهرست مرور حذف می‌شود.",
-                                                style = MaterialTheme.typography.bodySmall
+                                                style = MaterialTheme.typography.bodySmall,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                             )
                                             Button(
                                                 onClick = { startQuiz(review = true) },
@@ -585,7 +588,8 @@ fun ExamScreen() {
                                         } else {
                                             Text(
                                                 text = "هنوز سؤال غلطی ذخیره نشده — اول یک آزمون بده؛ هر سؤالی که غلط جواب بدهی خودکار این‌جا ذخیره می‌شود تا دفعهٔ بعد بیشتر تکرارش کنی.",
-                                                style = MaterialTheme.typography.bodySmall
+                                                style = MaterialTheme.typography.bodySmall,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                             )
                                         }
                                         if (reviewEmpty) {
@@ -603,7 +607,8 @@ fun ExamScreen() {
                                     SectionCard(title = "تمرین تشریحی", accent = cd.color) {
                                         Text(
                                             text = formatNumber(bank.qa.size) + " سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
-                                            style = MaterialTheme.typography.bodySmall
+                                            style = MaterialTheme.typography.bodySmall,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                         )
                                         FilterChips(
                                             options = flashCatOptions,
@@ -650,6 +655,7 @@ fun ExamScreen() {
                             text = "سؤال‌ها هر بار به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شوند؛ زیر هر سؤال برچسب منبع می‌آید (مثلاً «وادی هشتم») و چیزی که غلط جواب بدی دفعهٔ بعد بیشتر تکرار می‌شود.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF9D174D),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify,
                             modifier = Modifier.padding(12.dp)
                         )
                     }
@@ -728,6 +734,7 @@ fun ExamScreen() {
                                     Text(
                                         text = option,
                                         style = MaterialTheme.typography.bodyMedium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Justify,
                                         modifier = Modifier.padding(start = 10.dp)
                                     )
                                 }
@@ -741,12 +748,14 @@ fun ExamScreen() {
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = if (wasRight) CorrectGreen else WrongRed,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                             Text(
                                 text = q.explanation,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -812,7 +821,10 @@ fun ExamScreen() {
                 if (f == null) {
                     item {
                         SectionCard {
-                            Text("سؤالی در این دسته‌ها پیدا نشد؛ دسته‌های دیگری را انتخاب کن یا بانک را از منابع تازه به‌روز کن.")
+                            Text(
+                            text = "سؤالی در این دسته‌ها پیدا نشد؛ دسته‌های دیگری را انتخاب کن یا بانک را از منابع تازه به‌روز کن.",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+                        )
                             OutlinedButton(onClick = { phase = "start" }, modifier = Modifier.padding(top = 8.dp)) {
                                 Text("بازگشت")
                             }
@@ -861,13 +873,15 @@ fun ExamScreen() {
                                         )
                                         Text(
                                             text = f.a,
-                                            style = MaterialTheme.typography.bodyMedium
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                         )
                                         if (f.ref.isNotBlank()) {
                                             Text(
                                                 text = f.ref,
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                             )
                                         }
                                     }
@@ -952,7 +966,8 @@ fun ExamScreen() {
                                     percent >= 50 -> "بد نبود؛ اما پیشنهاد می‌کنم صفحهٔ «پروتکل» را یک‌بار دیگر با دقت بخوانی."
                                     else -> "نگران نباش؛ هر مسافری اولش این‌جوری است. جزوه و صفحهٔ پروتکل را مرور کن و دوباره آزمون بده. ما می‌توانیم ✋"
                                 },
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                             )
                         }
                         Row(
@@ -989,7 +1004,8 @@ fun ExamScreen() {
                                     else
                                         "پاسخ تو: ${h.question.options[h.chosenIndex]} — پاسخ درست: ${h.question.options[h.question.correctIndex]}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                                 )
                             }
                         }
@@ -1008,7 +1024,8 @@ fun ExamScreen() {
                         )
                         Text(
                             text = "سؤال‌های «بلد نبودم» را در جلسهٔ بعدی تمرین، اول مرور کن؛ تکرار، کلید یادگیری است. ما می‌توانیم ✋",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),

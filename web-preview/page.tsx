@@ -22,7 +22,6 @@ import {
   Palette,
   Pause,
   Play,
-  RefreshCw,
   RotateCcw,
   Settings as SettingsIcon,
   Trash2,
@@ -497,7 +496,7 @@ const SUBSTANCES: SubstanceDef[] = [
   },
   {
     id: "SOKHTE",
-    label: "سوخته",
+    label: "سوخته تریاک",
     program: "برنامه ۶–۳ (مثل تریاک و شیره کشیدنی)",
     consumptionLabel: null,
     consumptionHint:
@@ -505,7 +504,7 @@ const SUBSTANCES: SubstanceDef[] = [
   },
   {
     id: "SLEEPING",
-    label: "خواب‌آور",
+    label: "قرص",
     program: "جدول مستقل ندارد — فقط با هماهنگی راهنما",
     consumptionLabel: null,
     consumptionHint:
@@ -874,10 +873,10 @@ const LIB_ITEMS: LibItem[] = [
   },
   {
     id: "lib-03",
-    title: "راهنمای تازه‌واردان",
+    title: "راهنمای تازه‌واردین",
     sub: "راهنما • نخستین روزهای سفر •",
     color: NAV_COLORS.exam,
-    text: "راهنمای تازه‌واردان؛ نخستین روزهای سفر. تازه‌واردی که وارد کنگره می‌شود، اول باید بداند که اعتیاد بیماری است و درمان دارد. در روزهای نخست، نظم در خواب و بیداری، ورزش صبحگاهی، حضور در جلسات و شروع پروتکل درمان زیر نظر راهنما، پایه‌های سفر را می‌سازد. هیچ‌گاه مقدار و ساعت مصرف را بدون هماهنگی با راهنما تغییر نده. سفر اول از قطع مصرف می‌گذرد و سفر دوم، رسیدن به خویشتن است.",
+    text: "راهنمای تازه‌واردین؛ نخستین روزهای سفر. تازه‌واردی که وارد کنگره می‌شود، اول باید بداند که اعتیاد بیماری است و درمان دارد. در روزهای نخست، نظم در خواب و بیداری، ورزش صبحگاهی، حضور در جلسات و شروع پروتکل درمان زیر نظر راهنما، پایه‌های سفر را می‌سازد. هیچ‌گاه مقدار و ساعت مصرف را بدون هماهنگی با راهنما تغییر نده. سفر اول از قطع مصرف می‌گذرد و سفر دوم، رسیدن به خویشتن است.",
   },
   {
     id: "lib-04",
@@ -1188,7 +1187,7 @@ function HomeScreen(props: {
                 );
               })}
               {step.note && (
-                <p className="text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant }}>
+                <p className="text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
                   {step.note}
                 </p>
               )}
@@ -1483,7 +1482,7 @@ function JournalScreen(props: {
               <span className="ms-1 text-[15px]">{MOODS[entry.mood] ?? "😐"}</span>
             </div>
             {entry.note && (
-              <p className="text-[12px] leading-5" style={{ color: c.onSurfaceVariant }}>
+              <p className="text-[12px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
                 {entry.note}
               </p>
             )}
@@ -2026,7 +2025,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
 
           {bankError && (
             <SectionCard c={c}>
-              <p className="text-[11.5px] leading-5" style={{ color: RED_NO }}>
+              <p className="text-[11.5px] leading-5" style={{ color: RED_NO, textAlign: "justify" }}>
                 بارگذاری بانک سؤال ناموفق بود؛ صفحه را دوباره باز کن.
               </p>
             </SectionCard>
@@ -2085,7 +2084,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                   >
                     {faNum(i + 1)}
                   </span>
-                  <span className="text-[12.5px] leading-5" style={{ color: c.onBg }}>
+                  <span className="block text-[12.5px] leading-5" style={{ color: c.onBg, textAlign: "justify" }}>
                     {option}
                   </span>
                 </button>
@@ -2397,6 +2396,28 @@ const pickRotating = <T extends { id: string }>(pool: T[], recentIds: string[]):
   return cand[Math.floor(Math.random() * cand.length)] ?? pool[0];
 };
 
+/* — بانک پاساژها: قطعه‌های خواندنی استخراج‌شده از کل کتاب‌های کنگره ۶۰ —
+   ۱۴ وادی، ۱۴ مقاله، ۶۰ درجه، راهنما و راهنمایی، جهان‌بینی، راهنمای تازه‌واردین،
+   پروتکل DST، اصلاحیه، مثلث‌های آموزشی + کتاب‌های اسکنی (OCR) —
+   هر قطعه برچسب «منبع: نام کتاب» دارد؛ PDFهای امتحان طبق خواستهٔ کاربر وارد بانک نمی‌شوند */
+type Passage = { id: string; src: string; n: number; text: string };
+
+/* هر کارت کتاب از کدام منبع(ها) تغذیه می‌شود */
+const LIB_SRC: Record<string, string[]> = {
+  "lib-01": ["چهارده مقاله"],
+  "lib-02": ["کنگره ۶۰ چیست؟"],
+  "lib-03": ["راهنمای تازه‌واردین"],
+  "lib-04": ["چهارده وادی عشق"],
+  "lib-05": ["جهان‌بینی ۱", "جهان‌بینی ۲"],
+  dst: ["پروتکل DST", "اصلاحیه پروتکل DST"],
+  vazayef: ["شرح وظایف"],
+  ghavanin: ["قوانین کنگره ۶۰"],
+  shast: ["کتاب ۶۰ درجه"],
+  behtarin: ["بهترین راه"],
+  mosalas: ["مثلث‌های آموزشی"],
+  masraf: ["مصرف‌کننده کیست؟"],
+};
+
 /* ================================ مثلث‌های آموزشی ================================
    فهرست کامل ۵۸ مثلث جزوهٔ رسمی «مثلث‌های آموزشی کنگره ۶۰» — هر مثلث با سه ضلع مجزا رسم می‌شود */
 type TriangleDef = { n: number; title: string; sides: [string, string, string] };
@@ -2690,11 +2711,17 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
   const [playingPos, setPlayingPos] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  /* — بانک محتوای زنده: پیام امروز — */
+  /* — بانک محتوای زنده: پیام امروز (۲۴ آموزه) + بانک پاساژهای کل کتاب‌ها — */
   const [featPool, setFeatPool] = useState<FeatItem[]>(FEATURED_FALLBACK);
+  const [passPool, setPassPool] = useState<Passage[]>([]);
   const [feat, setFeat] = useState<FeatItem | null>(null);
+  /* متن جاری هر کارت کتاب — با هر ورود از بانک همان کتاب چرخش می‌شود */
+  const [cardTexts, setCardTexts] = useState<Record<string, string>>({});
+  /* تیک چرخش: با هر ورود به تب و هر بازگشت به برنامه یکی اضافه می‌شود */
+  const [tick, setTick] = useState(0);
+  const lastPicks = useRef<Record<string, string[]>>({});
 
-  /* آپدیت زنده: هر بار ورود به کتابخانه، نسخهٔ تازهٔ بانک محتوا خوانده می‌شود */
+  /* آپدیت زنده: نسخهٔ تازهٔ بانک آموزه‌ها خوانده می‌شود */
   useEffect(() => {
     fetch("/content/featured.json", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -2704,13 +2731,24 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
       .catch(() => {});
   }, []);
 
-  /* چرخش هوشمند: با هر ورود به این تب (باز شدن برنامه یا جابجایی بین تب‌ها) محتوای تازه انتخاب می‌شود؛
-     تاریخچهٔ localStorage مانع تکرار موارد اخیر می‌شود */
+  /* بانک پاساژها: قطعه‌های خواندنی همهٔ کتاب‌ها (اندازهٔ بانک ≈ ۱٫۴MB — با کش مرورگر) */
   useEffect(() => {
-    const f = pickRotating(featPool, readHist(FEAT_HIST_KEY));
-    saveHist(FEAT_HIST_KEY, f.id);
-    setFeat(f);
-  }, [featPool]);
+    fetch("/content/passages.json?v=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { passages?: Passage[] } | null) => {
+        if (d?.passages?.length) setPassPool(d.passages);
+      })
+      .catch(() => {});
+  }, []);
+
+  /* هوشمند: با بازگشت به برنامه (وقتی تب در پس‌زمینه بود) هم چرخش تازه انجام شود */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "visible") setTick((t) => t + 1);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   /* — موتور صوت: همهٔ بخش‌ها صوت دارند (مثل بخش ۱۴ وادی) — */
   const stopTts = () => {
@@ -2756,12 +2794,48 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
     }
   };
 
-  const rotateFeat = () => {
+  /* چرخش هوشمند: با هر ورود به کتابخانه (باز شدن برنامه، جابجایی بین تب‌ها یا بازگشت به برنامه)
+     ① پیام بالای کتابخانه از کل بانک (آموزه‌ها + قطعه‌های همهٔ کتاب‌ها با برچسب منبع)
+     ② متن هر کارت کتاب از بانک همان کتاب
+     به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شود؛ تاریخچهٔ ۱۲تایی مانع تکرار است.
+     دکمهٔ «پیام دیگر» حذف شد — چرخش کاملاً خودکار است */
+  useEffect(() => {
     stopTts();
-    const f = pickRotating(featPool, [...readHist(FEAT_HIST_KEY), feat?.id ?? ""]);
-    saveHist(FEAT_HIST_KEY, f.id);
+    const hist = readHist(FEAT_HIST_KEY);
+    const passageFeat: FeatItem[] = passPool.map((p) => ({
+      id: p.id,
+      title: p.src,
+      sub: `منبع: ${p.src} — قطعهٔ ${p.n}`,
+      text: p.text,
+    }));
+    /* ~۴۰٪ از آموزه‌های کوتاه، بقیه از کل کتاب‌ها — همه با تاریخچهٔ ضدتکرار مشترک */
+    const fromAmoozeh = featPool.length > 0 && Math.random() < 0.4;
+    const pool: FeatItem[] = fromAmoozeh
+      ? featPool
+      : passageFeat.length > 0
+        ? passageFeat
+        : featPool;
+    const f = pickRotating(pool, hist);
+    saveHist(FEAT_HIST_KEY, f.id, 12);
     setFeat(f);
-  };
+    /* — متن تازهٔ هر کارت کتاب از بانک پاساژهای همان کتاب — */
+    const next: Record<string, string> = {};
+    for (const item of LIB_ITEMS) {
+      const srcs = LIB_SRC[item.id];
+      const cand = srcs ? passPool.filter((p) => srcs.includes(p.src)) : [];
+      if (cand.length === 0) {
+        next[item.id] = item.text;
+        continue;
+      }
+      const recent = lastPicks.current[item.id] ?? [];
+      const fresh = cand.filter((p) => !recent.includes(p.id));
+      const from = fresh.length > 0 ? fresh : cand;
+      const pick = from[Math.floor(Math.random() * from.length)];
+      lastPicks.current[item.id] = [pick.id, ...recent].slice(0, 3);
+      next[item.id] = pick.text;
+    }
+    setCardTexts(next);
+  }, [featPool, passPool, tick]);
   /* انتخاب گوینده — روی همهٔ صوت‌ها اعمال می‌شود و به‌خاطر سپرده می‌شود */
   useEffect(() => {
     try {
@@ -2792,7 +2866,7 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
         <h2 className="text-[24px] font-black" style={{ color: accent }}>
           کتابخانه
         </h2>
-        <p className="mt-1 text-[12.5px] leading-6" style={{ color: c.onSurfaceVariant }}>
+        <p className="mt-1 text-[12.5px] leading-6" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
           متن و خوانش کتاب‌ها و متون کنگرهٔ ۶۰ — با صدای مرد و زن
         </p>
       </div>
@@ -2813,15 +2887,6 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
           onToggle={() => setExpanded(expanded === "feat" ? null : "feat")}
           onPlay={() => playTts("feat", feat.text)}
           onRead={() => setReader({ id: "feat", title: feat.title, sub: feat.sub, text: feat.text, color: accent })}
-          trailing={
-            <button
-              onClick={rotateFeat}
-              className="mx-auto mt-2 flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold active:scale-[0.98]"
-              style={{ borderColor: `${accent}66`, color: accent }}
-            >
-              <RefreshCw size={12} /> پیام دیگر
-            </button>
-          }
         />
       )}
 
@@ -2848,27 +2913,31 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
         ))}
       </div>
 
-      {LIB_ITEMS.map((item) => (
-        <LibCardView
-          key={item.id}
-          c={c}
-          title={item.title}
-          sub={item.sub}
-          text={item.text}
-          color={item.color}
-          open={expanded === item.id}
-          playing={playingId === item.id}
-          loading={loadingId === item.id}
-          playingPos={playingPos}
-          badge="صوت = خوانش همین متن"
-          triangles={item.id === "mosalas"}
-          onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
-          onPlay={() => playTts(item.id, item.text)}
-          onRead={() =>
-            setReader({ id: item.id, title: item.title, sub: item.sub, text: item.text, triangles: item.id === "mosalas", color: item.color })
-          }
-        />
-      ))}
+      {LIB_ITEMS.map((item) => {
+        /* متن چرخشی کارت — با هر ورود یک قطعهٔ تازه از همان کتاب؛ اگر بانک نداشت، متن ثابت */
+        const txt = cardTexts[item.id] ?? item.text;
+        return (
+          <LibCardView
+            key={item.id}
+            c={c}
+            title={item.title}
+            sub={item.sub}
+            text={txt}
+            color={item.color}
+            open={expanded === item.id}
+            playing={playingId === item.id}
+            loading={loadingId === item.id}
+            playingPos={playingPos}
+            badge="صوت = خوانش همین متن"
+            triangles={item.id === "mosalas"}
+            onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
+            onPlay={() => playTts(item.id, txt)}
+            onRead={() =>
+              setReader({ id: item.id, title: item.title, sub: item.sub, text: txt, triangles: item.id === "mosalas", color: item.color })
+            }
+          />
+        );
+      })}
 
       {/* پنجرهٔ خوانش متن — با کلیک روی آیکون کتاب (📖) هر کارت */}
       {reader && (
@@ -2998,7 +3067,7 @@ function SettingsScreen(props: {
 
       {sub.consumptionLabel == null ? (
         <SectionCard c={c} title="مقدار مصرف">
-          <p className="text-[12.5px] leading-6" style={{ color: c.onBg }}>
+          <p className="text-[12.5px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
             {sub.consumptionHint}
           </p>
         </SectionCard>
@@ -3024,7 +3093,7 @@ function SettingsScreen(props: {
               );
             })}
           </div>
-          <p className="text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant }}>
+          <p className="text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
             {sub.consumptionHint}
           </p>
         </SectionCard>
@@ -3084,8 +3153,8 @@ function SettingsScreen(props: {
         <p className="text-[13px] font-bold" style={{ color: c.onBg }}>
           مسافر — همراه درمان اعتیاد
         </p>
-        <p className="text-[11px] leading-6" style={{ color: c.onSurfaceVariant }}>
-          نسخه ۱٫۵٫۲ — اپلیکیشن آفلاین و متن‌باز
+        <p className="text-[11px] leading-6" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+          نسخه ۱٫۵٫۴ — اپلیکیشن آفلاین و متن‌باز
           <br />
           پروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰
         </p>
@@ -3173,7 +3242,7 @@ function SettingsScreen(props: {
             <p className="text-[14.5px] font-bold" style={{ color: c.onBg }}>
               پاک کردن همه داده‌ها؟
             </p>
-            <p className="mt-2 text-[12px] leading-6" style={{ color: c.onSurfaceVariant }}>
+            <p className="mt-2 text-[12px] leading-6" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
               همه ثبت‌های روزانه و تنظیمات درمان حذف می‌شوند. این عمل قابل بازگشت نیست.
             </p>
             <div className="mt-3 flex gap-2">

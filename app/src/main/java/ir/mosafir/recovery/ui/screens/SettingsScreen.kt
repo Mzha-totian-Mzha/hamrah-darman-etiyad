@@ -234,7 +234,8 @@ fun SettingsScreen(
                 Text(
                     text = "تاریخ شروع، روز اول پله نخستِ برنامه ماده انتخابی است.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Justify
                 )
             }
         }
@@ -312,7 +313,8 @@ fun SettingsScreen(
                     SectionCard(title = "مقدار مصرف", accent = NavViolet) {
                         Text(
                             text = settings.substance.consumptionHint,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Justify
                         )
                     }
                 }
@@ -355,7 +357,8 @@ fun SettingsScreen(
                         Text(
                             text = settings.substance.consumptionHint,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Justify
                         )
                     }
                 }
@@ -383,7 +386,8 @@ fun SettingsScreen(
                         "اگر حدود ۵ صبح بیدار می‌شوی مدل ۱، حدود ۶ صبح مدل ۲ و حدود ۷ صبح مدل ۳ مناسب است. " +
                         "ساعت وعده شب با تشخیص راهنما می‌تواند تا یک ساعت پایین‌تر بیاید.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Justify
                 )
             }
         }
@@ -406,7 +410,8 @@ fun SettingsScreen(
                 Text(
                     text = "همه اطلاعات فقط روی همین گوشی ذخیره می‌شود و به هیچ سروری ارسال نمی‌گردد.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Justify
                 )
             }
         }
@@ -419,9 +424,10 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۵٫۳ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخه ۱٫۵٫۴ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Justify
                 )
                 Text(
                     text = "ما می‌توانیم ✋",
@@ -470,7 +476,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text("پاک کردن همه داده‌ها؟") },
-            text = { Text("همه ثبت‌های روزانه و تنظیمات درمان حذف می‌شوند. این عمل قابل بازگشت نیست.") },
+            text = { Text("همه ثبت‌های روزانه و تنظیمات درمان حذف می‌شوند. این عمل قابل بازگشت نیست.", textAlign = TextAlign.Justify) },
             confirmButton = {
                 Button(
                     onClick = {

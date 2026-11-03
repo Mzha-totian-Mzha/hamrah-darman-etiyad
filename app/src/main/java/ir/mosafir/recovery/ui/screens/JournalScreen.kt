@@ -159,7 +159,8 @@ private fun EntryCard(entry: JournalEntry, doses: Int, onDelete: () -> Unit) {
             Text(
                 text = entry.note,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
             )
         }
     }

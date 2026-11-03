@@ -364,7 +364,8 @@ fun ProtocolScreen(settings: UserSettings) {
                         Text(
                             text = "• $note",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Justify
                         )
                     }
                 }
@@ -382,7 +383,8 @@ fun ProtocolScreen(settings: UserSettings) {
                 Text(
                     text = "فاصله وعده‌ها ۸ ساعت است (مثلاً ۶ صبح، ۲ بعدازظهر و ۱۰ شب — مدل ۲). ساعت وعده شب بنا به تشخیص راهنما می‌تواند تا یک ساعت پایین‌تر بیاید.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Justify
                 )
             }
         }

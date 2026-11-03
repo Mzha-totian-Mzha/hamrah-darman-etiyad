@@ -251,7 +251,8 @@ fun HomeScreen(
                         Text(
                             text = "برای فعال شدن برنامه DST، اول نوع مادهٔ مصرفی، تاریخ شروع و مقدار مصرف را در تنظیمات ثبت کن.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.92f)
+                            color = Color.White.copy(alpha = 0.92f),
+                            textAlign = TextAlign.Justify
                         )
                         Spacer(Modifier.height(14.dp))
                         HeroPill(
@@ -407,7 +408,8 @@ fun HomeScreen(
                             Text(
                                 text = step.note,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Justify
                             )
                         }
                     }
@@ -417,7 +419,8 @@ fun HomeScreen(
                     SectionCard(title = "پایان برنامه", accent = HeroOrange) {
                         Text(
                             text = "همه پله‌های این برنامه طی شده است. طبق جزوه، پله آخر (۰٫۳cc در ۲۴ ساعت) ۲ تا ۲۱ روز ادامه دارد و پس از دیدن شرایط پله آخر، مصرف با نظر راهنما قطع می‌شود. خدا قوت — سفر دوم آغاز شد. 🌱",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Justify
                         )
                     }
                 }

@@ -40,7 +40,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.AlertDialog
@@ -81,6 +80,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.NoticeCard
 import ir.mosafir.recovery.ui.ScreenHeader
@@ -121,8 +123,8 @@ private val LIB_ITEMS = listOf(
         "کنگره ۶۰ محفلی است برای آموزش و درمان اعتیاد. این مجموعه توسط مهندس حسین دژاکام بنیان گذاشته شد و درمان در آن بر پایهٔ متد DST یعنی تخفیف تدریجی مصرف انجام می‌شود. در کنگره ۶۰، اعتیاد یک بیماری در نظر گرفته می‌شود که با نظم، محبت و پیگیری درمان، قابل کنترل است. هدف، ساختن مسافری است که با رهایی از مواد، به ارزشمندی و آرامش برسد."
     ),
     LibItem(
-        "lib-03", "راهنمای تازه‌واردان", "راهنما • نخستین روزهای سفر •", HeroPink,
-        "راهنمای تازه‌واردان؛ نخستین روزهای سفر. تازه‌واردی که وارد کنگره می‌شود، اول باید بداند که اعتیاد بیماری است و درمان دارد. در روزهای نخست، نظم در خواب و بیداری، ورزش صبحگاهی، حضور در جلسات و شروع پروتکل درمان زیر نظر راهنما، پایه‌های سفر را می‌سازد. هیچ‌گاه مقدار و ساعت مصرف را بدون هماهنگی با راهنما تغییر نده. سفر اول از قطع مصرف می‌گذرد و سفر دوم، رسیدن به خویشتن است."
+        "lib-03", "راهنمای تازه‌واردین", "راهنما • نخستین روزهای سفر •", HeroPink,
+        "راهنمای تازه‌واردین؛ نخستین روزهای سفر. تازه‌واردی که وارد کنگره می‌شود، اول باید بداند که اعتیاد بیماری است و درمان دارد. در روزهای نخست، نظم در خواب و بیداری، ورزش صبحگاهی، حضور در جلسات و شروع پروتکل درمان زیر نظر راهنما، پایه‌های سفر را می‌سازد. هیچ‌گاه مقدار و ساعت مصرف را بدون هماهنگی با راهنما تغییر نده. سفر اول از قطع مصرف می‌گذرد و سفر دوم، رسیدن به خویشتن است."
     ),
     LibItem(
         "lib-04", "چهارده وادی عشق", "کتاب • ۱۴ وادی • متن و صوت •", NavViolet,
@@ -348,6 +350,40 @@ private fun <T> pickRotating(pool: List<T>, recentIds: List<String>, idOf: (T) -
     return cand[Random.nextInt(cand.size)]
 }
 
+/* — بانک پاساژها: قطعه‌های خواندنی استخراج‌شده از کل کتاب‌های کنگره ۶۰ —
+   ۱۴ وادی، ۱۴ مقاله، ۶۰ درجه، راهنما و راهنمایی، جهان‌بینی، راهنمای تازه‌واردین،
+   پروتکل DST، اصلاحیه، مثلث‌های آموزشی + کتاب‌های اسکنی (OCR) —
+   هر قطعه برچسب «منبع: نام کتاب» دارد؛ PDFهای امتحان طبق خواستهٔ کاربر وارد بانک نمی‌شوند */
+private data class Passage(val id: String, val src: String, val n: Int, val text: String)
+
+/** هر کارت کتاب از کدام منبع(ها) تغذیه می‌شود */
+private val LIB_SRC: Map<String, List<String>> = mapOf(
+    "lib-01" to listOf("چهارده مقاله"),
+    "lib-02" to listOf("کنگره ۶۰ چیست؟"),
+    "lib-03" to listOf("راهنمای تازه‌واردین"),
+    "lib-04" to listOf("چهارده وادی عشق"),
+    "lib-05" to listOf("جهان‌بینی ۱", "جهان‌بینی ۲"),
+    "dst" to listOf("پروتکل DST", "اصلاحیه پروتکل DST"),
+    "vazayef" to listOf("شرح وظایف"),
+    "ghavanin" to listOf("قوانین کنگره ۶۰"),
+    "shast" to listOf("کتاب ۶۰ درجه"),
+    "behtarin" to listOf("بهترین راه"),
+    "mosalas" to listOf("مثلث‌های آموزشی"),
+    "masraf" to listOf("مصرف‌کننده کیست؟")
+)
+
+/** خواندن بانک پاساژها از assets — اگر موجود نبود، فهرست خالی (کارت‌ها متن ثابت خود را نشان می‌دهند) */
+private fun loadPassages(context: Context): List<Passage> = try {
+    val raw = context.assets.open("passages.json").bufferedReader().use { it.readText() }
+    val arr = JSONObject(raw).getJSONArray("passages")
+    (0 until arr.length()).mapNotNull { i ->
+        val o = arr.optJSONObject(i) ?: return@mapNotNull null
+        Passage(o.optString("id"), o.optString("src"), o.optInt("n"), o.optString("text"))
+    }
+} catch (_: Exception) {
+    emptyList()
+}
+
 /** انتخاب صدای فارسی مرد/زن — اگر موتور TTS صدای مناسب نداشت، پیش‌فرض می‌ماند (بی‌صدا) */
 private fun selectVoice(engine: TextToSpeech, female: Boolean) {
     try {
@@ -376,7 +412,8 @@ private data class ReaderState(
     val sub: String?,
     val text: String,
     val triangles: Boolean,
-    val color: Color
+    val color: Color,
+    val audioId: String? = null
 )
 
 @Composable
@@ -384,8 +421,11 @@ fun LibraryScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("hamrah_lib", Context.MODE_PRIVATE) }
 
-    // — محتوای چرخشی: پیام امروز —
+    // — محتوای چرخشی: پیام امروز + بانک پاساژهای کل کتاب‌ها + متن جاری هر کارت —
     var feat by remember { mutableStateOf(FEATURED.first()) }
+    var passages by remember { mutableStateOf<List<Passage>>(emptyList()) }
+    var cardTexts by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val lastPicks = remember { mutableMapOf<String, List<String>>() }
 
     // — گوینده —
     var voiceFemale by remember { mutableStateOf(prefs.getBoolean(KEY_VOICE_FEMALE, false)) }
@@ -423,7 +463,7 @@ fun LibraryScreen() {
         progress = 0f
     }
 
-    fun speak(id: String, text: String, slow: Boolean = false) {
+    fun speak(id: String, text: String, slow: Boolean = false, audioId: String = id) {
         if (playingId == id) {
             stopSpeak()
             return
@@ -433,7 +473,7 @@ fun LibraryScreen() {
         /* — اول: فایل صوتی ضبط‌شده (MP3 داخل خود برنامه) —
            صدای واقعی مرد/زن که در res/raw بسته شده و روی هر گوشی کار می‌کند؛
            موتور گفتار گوشی فقط برای متون بدون فایل ضبط‌شده استفاده می‌شود. */
-        val base = id.replace("-", "_").lowercase()
+        val base = audioId.replace("-", "_").lowercase()
         val resId = context.resources.getIdentifier(
             if (voiceFemale) "${base}f" else base,
             "raw",
@@ -499,19 +539,56 @@ fun LibraryScreen() {
         tts?.let { selectVoice(it, female) }
     }
 
-    fun rotateFeat() {
+    // — چرخش هوشمند: پیام بالای کتابخانه از کل بانک (آموزه‌ها + قطعه‌های همهٔ کتاب‌ها با برچسب منبع)
+    //   و متن هر کارت کتاب از بانک همان کتاب — تصادفی و بدون ترتیب مشخص، با تاریخچهٔ ضدتکرار ۱۲تایی.
+    //   دکمهٔ «پیام دیگر» حذف شد؛ چرخش کاملاً خودکار است. —
+    fun rotateAll() {
         stopSpeak()
-        val f = pickRotating(FEATURED, readHist(prefs, KEY_FEAT_HIST) + feat.id) { it.id }
+        val passageFeat = passages.map {
+            FeaturedItem(it.id, it.src, "منبع: ${it.src} — قطعهٔ ${it.n}", it.text)
+        }
+        val fromAmoozeh = FEATURED.isNotEmpty() && Random.nextInt(100) < 40
+        val pool = when {
+            fromAmoozeh -> FEATURED
+            passageFeat.isNotEmpty() -> passageFeat
+            else -> FEATURED
+        }
+        val f = pickRotating(pool, readHist(prefs, KEY_FEAT_HIST) + feat.id) { it.id }
         saveHist(prefs, KEY_FEAT_HIST, f.id, max = 12)
         feat = f
+        // — متن تازهٔ هر کارت کتاب از بانک پاساژهای همان کتاب —
+        val next = mutableMapOf<String, String>()
+        for (item in LIB_ITEMS) {
+            val srcs = LIB_SRC[item.id]
+            val cand = if (srcs == null) emptyList() else passages.filter { p -> p.src in srcs }
+            if (cand.isEmpty()) {
+                next[item.id] = item.text
+                continue
+            }
+            val recent = lastPicks[item.id] ?: emptyList()
+            val fresh = cand.filter { p -> p.id !in recent }
+            val from = fresh.ifEmpty { cand }
+            val pick = from[Random.nextInt(from.size)]
+            lastPicks[item.id] = (listOf(pick.id) + recent).take(3)
+            next[item.id] = pick.text
+        }
+        cardTexts = next
     }
 
-    // — چرخش هوشمند: با هر ورود به کتابخانه (باز کردن برنامه یا جابجایی بین تب‌ها) —
-    // محتوای تازه انتخاب می‌شود؛ تاریخچهٔ SharedPreferences مانع تکرار موارد اخیر می‌شود.
+    // — با هر ورود به کتابخانه: بانک پاساژها خوانده و چرخش تازه انجام می‌شود —
     LaunchedEffect(Unit) {
-        val f = pickRotating(FEATURED, readHist(prefs, KEY_FEAT_HIST)) { it.id }
-        saveHist(prefs, KEY_FEAT_HIST, f.id, max = 12)
-        feat = f
+        if (passages.isEmpty()) passages = loadPassages(context)
+        rotateAll()
+    }
+
+    // — با بازگشت به برنامه (از پس‌زمینه) هم چرخش تازه انجام می‌شود —
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) rotateAll()
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
     // — ساخت موتور TTS —
@@ -648,16 +725,9 @@ fun LibraryScreen() {
                 progress = progress,
                 badge = "صوت = خوانش همین متن",
                 onToggle = { expandedId = if (expandedId == "feat") null else "feat" },
-                onPlay = { speak("feat", feat.text) },
+                onPlay = { speak("feat", feat.text, audioId = feat.id) },
                 onRead = {
-                    reader = ReaderState("feat", feat.title, feat.sub, feat.text, false, NavAmber)
-                },
-                trailing = {
-                    RotatePill(
-                        label = "پیام دیگر",
-                        color = NavAmber,
-                        onClick = { rotateFeat() }
-                    )
+                    reader = ReaderState("feat", feat.title, feat.sub, feat.text, false, NavAmber, feat.id)
                 }
             )
         }
@@ -718,10 +788,13 @@ fun LibraryScreen() {
         // کارت‌های کتابخانه — چیدمان عکس ۶: کتاب سمت راست، پخش سمت چپ، شرون پایین
         items(LIB_ITEMS.size) { index ->
             val item = LIB_ITEMS[index]
+            // متن چرخشی کارت — با هر ورود یک قطعهٔ تازه از همان کتاب؛ اگر بانک نداشت، متن ثابت
+            val txt = cardTexts[item.id] ?: item.text
+            val audioId = if (txt == item.text) item.id else "${item.id}__pas"
             LibCard(
                 title = item.title,
                 sub = item.sub,
-                text = item.text,
+                text = txt,
                 color = item.color,
                 open = expandedId == item.id,
                 playing = playingId == item.id,
@@ -730,15 +803,16 @@ fun LibraryScreen() {
                 badge = "صوت = خوانش همین متن",
                 triangles = item.id == "mosalas",
                 onToggle = { expandedId = if (expandedId == item.id) null else item.id },
-                onPlay = { speak(item.id, item.text) },
+                onPlay = { speak(item.id, txt, audioId = audioId) },
                 onRead = {
                     reader = ReaderState(
                         item.id,
                         item.title,
                         item.sub,
-                        item.text,
+                        txt,
                         item.id == "mosalas",
-                        item.color
+                        item.color,
+                        audioId
                     )
                 }
             )
@@ -833,7 +907,7 @@ fun LibraryScreen() {
                             .padding(top = 16.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(50))
-                            .clickable { speak(r.id, r.text) }
+                            .clickable { speak(r.id, r.text, audioId = r.audioId ?: r.id) }
                     ) {
                         Row(
                             modifier = Modifier
@@ -1093,40 +1167,6 @@ private fun LibCard(
             }
 
             trailing?.invoke()
-        }
-    }
-}
-
-/** دکمهٔ گرد «پیام دیگر / آرام‌سازی دیگر» — چرخش به محتوای تازه */
-@Composable
-private fun RotatePill(label: String, color: Color, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = Color.Transparent,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.4f)),
-        modifier = Modifier
-            .padding(top = 8.dp)
-            .clip(RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Refresh,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(12.dp)
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
         }
     }
 }

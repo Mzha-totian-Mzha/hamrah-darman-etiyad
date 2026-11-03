@@ -170,6 +170,7 @@ fun NoticeCard(text: String) {
                 text = text,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
+                textAlign = TextAlign.Justify,
                 modifier = Modifier.padding(start = 8.dp)
             )
         }
@@ -196,7 +197,8 @@ fun ScreenHeader(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Justify
             )
         }
     }
