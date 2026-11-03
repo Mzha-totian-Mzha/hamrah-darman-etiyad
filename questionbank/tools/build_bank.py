@@ -70,6 +70,25 @@ def _pick_key_number(q: str, n, decoded: dict, snips: dict):
             best, best_r = c, r
     return best if best and (best_r >= 0.42 or not snips) else best
 
+def align_expected(obs_ns: list) -> list | None:
+    """شمارهٔ درست هر مکان با فرض دنبالهٔ ۱..K — با چرخش ارقام OCR (۱۲→۲۱، ۱۰→۱)
+    و حداکثر یک جای‌خالی (سؤال گم‌شده مثل exam08). فقط وقتی ≥۹۰٪ وارسی شود قبول است."""
+    K = len(obs_ns)
+    if K < 8:
+        return None
+    for gap in [None] + list(range(1, K + 1)):
+        expected = [i for i in range(1, K + 1) if i != gap]
+        ok = tot = 0
+        for o, e in zip(obs_ns, expected):
+            if o is None:
+                continue
+            tot += 1
+            if o == e or o == int(str(e)[::-1]):
+                ok += 1
+        if tot and ok / tot >= 0.9:
+            return expected
+    return None
+
 # ---------------------------------------------------------------- نرمال‌سازی
 
 CHAR_MAP = str.maketrans({
@@ -357,6 +376,12 @@ def main() -> None:
                     break
             # کلیدهای رمزگشایی‌شده از دایره‌های پاسخ‌نامه (decode_answer_keys.py) — منبع قطعی
             decoded = DECODED.get(stem, {})
+            # تراز مکانی شماره‌ها: دنبالهٔ ۱..K با چرخش ارقام OCR و حداکثر یک جای‌خالی —
+            # وقتی ≥۹۰٪ وارسی شود، اتصال کلید با شمارهٔ درست ۱۰۰٪ مطمئن است
+            obs_ns = [it.get("n") for it in d["items"] if isinstance(it, dict)]
+            expected_ns = align_expected(obs_ns)
+            snips = DECODED_TEXT.get(stem, {})
+            pos2num = dict(enumerate(expected_ns)) if expected_ns else {}
             # اتصال فقط وقتی امن است که شماره‌های پاسخ‌نامه دقیقاً ۱..N برابر تعداد سؤال‌ها باشند
             # و اکثر مقادیر حرفِ تنها باشند (وگرنه شماره‌گذاری «بخشی» است و حرف اشتباه می‌چسبد)
             aligned = False
@@ -367,7 +392,7 @@ def main() -> None:
                     keys = []
                 solo_n = sum(1 for v in keymap.values() if re.fullmatch(r"\s*(?:گزینه\s*)?(الف|ب|ج|د)\s*", str(v)))
                 aligned = keys == list(range(1, len(d["items"]) + 1)) and solo_n >= 0.6 * len(d["items"])
-            for it in d["items"]:
+            for pos, it in enumerate(d["items"]):
                 q = cut_boiler(fix_words(smart_fix(it.get("q", ""))))
                 n, q = strip_lead(q)
                 n = it.get("n") or n
@@ -386,20 +411,36 @@ def main() -> None:
                     "refs": refs, "src": fname, "cat": category_of(fname, q),
                     "quality": qual,
                 }
-                if stem in DECODED and len(opts) >= 2:
-                    # کلید دایره‌کشی‌شده — شمارهٔ درست با تطبیق متن سؤال انتخاب می‌شود
-                    # (شماره‌های دومرحله‌ایِ استخراج خام گاهی معکوس‌اند: ۲۱↔۱۲)
-                    snips = DECODED_TEXT.get(stem, {})
-                    kn = _pick_key_number(q, n, DECODED[stem], snips)
-                    if kn:
-                        entry["ans"] = DECODED[stem][kn]
+                if decoded and len(opts) >= 2:
+                    L = None
+                    n_true = pos2num.get(pos, n)
+                    # اولویت ۱ — شمارهٔ مکانیِ وارسی‌شده (قطعی)
+                    if n_true is not None and decoded.get(str(n_true)) in opts:
+                        L = decoded[str(n_true)]
+                    # اولویت ۲ — تطبیق متنی با بریدهٔ پاسخ‌نامه (فقط وقتی تراز مکانی نبود)
+                    elif not expected_ns:
+                        kn = _pick_key_number(q, n, decoded, snips)
+                        if kn and decoded[kn] in opts:
+                            L = decoded[kn]
+                    if L:
+                        entry["ans"] = L
                 elif keymap and aligned and n is not None and str(n) in keymap and len(opts) >= 2:
                     letter, atext = parse_answer_value(str(keymap[str(n)]), opts)
                     entry["ans"] = letter
                 k = dedup_key(q)
                 if k in seen:
                     dup_count += 1
-                    mcq[seen[k]]["dup"] += 1
+                    prev = mcq[seen[k]]
+                    prev["dup"] += 1
+                    # ارتقای نسخه: کپی تکراریِ سالم‌تر، گزینه‌های خراب نسخهٔ اول را ترمیم می‌کند
+                    if len(entry["opts"]) > len(prev["opts"]):
+                        prev["opts"] = entry["opts"]
+                        if prev["ans"] and prev["ans"] not in prev["opts"]:
+                            prev["ans"] = None
+                        if len(prev["opts"]) >= 2 and len(prev["q"]) >= 8 and prev["quality"] == "review":
+                            prev["quality"] = quality_q(prev["q"])
+                    if not prev["ans"] and entry["ans"] and entry["ans"] in prev["opts"]:
+                        prev["ans"] = entry["ans"]
                     continue
                 seen[k] = len(mcq)
                 entry["id"] = f"m-{len(mcq)+1:05d}"
@@ -440,6 +481,35 @@ def main() -> None:
                     "quality": qual,
                 })
         # mcq_ans ها خودشان در مرحلهٔ pair_answers مصرف شده‌اند
+
+    # پاس نهایی — کلیدهای بلااستفاده: متن سؤالِ بریده‌شده از خود پاسخ‌نامه
+    # با تطبیق فازی به سؤالِ بانک وصل می‌شود؛ فقط وقتی حرف در گزینه‌های مقصد باشد
+    extra = 0
+    for stem, dec in DECODED.items():
+        snips = DECODED_TEXT.get(stem, {})
+        for num, L in dec.items():
+            snip = snips.get(num, "")
+            if not snip:
+                continue
+            best, best_m = 0.0, None
+            for m2 in mcq:
+                r = max(
+                    SequenceMatcher(None, m2["q"][:120], snip[:120]).ratio(),
+                    SequenceMatcher(None, m2["q"][:120], _wordrev(snip)[:120]).ratio(),
+                )
+                if r > best:
+                    best, best_m = r, m2
+            if (
+                best_m is not None
+                and best >= 0.72
+                and not best_m.get("ans")
+                and L in (best_m.get("opts") or {})
+                and len(best_m["opts"]) >= 2
+            ):
+                best_m["ans"] = L
+                extra += 1
+    if extra:
+        print(f"   کلیدهای بازیابی‌شده با تطبیق متنی: {extra}")
 
     # آمار
     mcq_ans_attached = sum(1 for x in mcq if x["ans"])
