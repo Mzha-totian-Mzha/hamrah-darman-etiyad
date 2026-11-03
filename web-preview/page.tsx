@@ -10,10 +10,12 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   Clock,
   FileQuestion,
   Flag,
   Home as HomeIcon,
+  Layers,
   Loader2,
   Mic,
   NotebookPen,
@@ -21,9 +23,11 @@ import {
   Pause,
   Play,
   RefreshCw,
+  RotateCcw,
   Settings as SettingsIcon,
   Trash2,
   TrendingUp,
+  Timer,
   X,
   Droplet,
 } from "lucide-react";
@@ -156,6 +160,9 @@ const SUBSTANCE_DOTS: Record<SubstanceId, string> = {
   METHADONE: "#F59E0B",
   TRAMADOL: "#10B981",
   SHIREH_ORAL: "#64748B",
+  SOKHTE: "#B45309",
+  SLEEPING: "#475569",
+  OTHER: "#78716C",
 };
 type NavColorKey = keyof typeof NAV_COLORS;
 
@@ -343,7 +350,10 @@ type SubstanceId =
   | "STIMULANT"
   | "METHADONE"
   | "TRAMADOL"
-  | "SHIREH_ORAL";
+  | "SHIREH_ORAL"
+  | "SOKHTE"
+  | "SLEEPING"
+  | "OTHER";
 type SubstanceDef = {
   id: SubstanceId;
   label: string;
@@ -463,16 +473,16 @@ const SUBSTANCES: SubstanceDef[] = [
     program: "جایگزینی هفتگی وعده‌به‌وعده با OT",
     consumptionLabel: "مصرف روزانه شربت متادون (سی‌سی)",
     consumptionHint:
-      "قرص ۵ میلی‌گرمی = ۱ سی‌سی شربت متادون = ۱ سی‌سی شربت OT (۱۰mg = ۲cc و ۲۰mg = ۸cc).",
+      "قرص ۵ میلی‌گرمی = ۱ سی‌سی شربت متادون = ۱ سی‌سی شربت OT؛ قرص ۱۰mg = ۲cc، قرص ۲۰mg = ۴cc و قرص ۴۰mg = ۸cc.",
     options: [5, 10, 16.5],
   },
   {
     id: "TRAMADOL",
     label: "ترامادول",
-    program: "مثل متادون — قرص ۱۰۰mg = ۱٫۵cc OT",
+    program: "مثل متادون — قرص ۱۰۰mg = ۰٫۵cc OT",
     consumptionLabel: "تعداد قرص ۱۰۰ میلی‌گرمی در روز",
     consumptionHint:
-      "هر قرص ۱۰۰ میلی‌گرمی = ۱٫۵ سی‌سی OT؛ قرص ۲۰۰ میلی‌گرمی = ۳ سی‌سی. اگر کمتر از ۶cc شد، تا ۶cc بالا می‌رود.",
+      "هر قرص ۱۰۰ میلی‌گرمی = ۰٫۵ سی‌سی OT؛ قرص ۲۰۰ میلی‌گرمی = ۱ سی‌سی. اگر OT محاسبه‌شده کمتر از ۶cc شد، تا سقف ۶cc بالا می‌رود.",
     options: [2, 4, 6, 10],
     optionUnit: (v) => `${faNum(v)} قرص`,
   },
@@ -484,6 +494,30 @@ const SUBSTANCES: SubstanceDef[] = [
     consumptionHint:
       "محاسبه مثل تریاک خوراکی؛ سپس هفته‌ای یک وعده (ظهر، صبح، شب) با OT جایگزین می‌شود.",
     options: [0.5, 1.0, 1.5, 2.0],
+  },
+  {
+    id: "SOKHTE",
+    label: "سوخته",
+    program: "برنامه ۶–۳ (مثل تریاک و شیره کشیدنی)",
+    consumptionLabel: null,
+    consumptionHint:
+      "سوخته (باقی‌ماندهٔ سوختهٔ تریاک/شیره) به هر مقدار و هر شیوه: مصرف بلافاصله قطع و همزمان شربت OT شروع می‌شود؛ طبق بخش ۱ اصلاحیه، همین برنامهٔ ۶–۳ اجرا می‌شود.",
+  },
+  {
+    id: "SLEEPING",
+    label: "خواب‌آور",
+    program: "جدول مستقل ندارد — فقط با هماهنگی راهنما",
+    consumptionLabel: null,
+    consumptionHint:
+      "طبق «راهنما و راهنمایی»: قرص‌های خواب و آرام‌بخش هم روی سیستم ایکس اثر می‌گذارند (آنتی‌اکس)؛ در متد DST برای آن‌ها جدول مستقلی ثبت نشده و درمان فقط با هماهنگی راهنما انجام می‌شود.",
+  },
+  {
+    id: "OTHER",
+    label: "سایر",
+    program: "برنامهٔ پیش‌فرض ندارد — تنظیم با هماهنگی راهنما",
+    consumptionLabel: null,
+    consumptionHint:
+      "برای هر مادهٔ دیگری، نوع ماده و برنامهٔ درمان باید فقط با هماهنگی راهنمای خودت ثبت شود؛ این گزینه جدول محاسباتی پیش‌فرض ندارد.",
   },
 ];
 
@@ -505,7 +539,31 @@ function ladderFrom(dailyCc: number): PlanStep[] {
 
 function buildPlan(settings: UserSettings): PersonalPlan {
   const { substance, consumption } = settings;
-  if (substance === "OPIUM_SMOKED") {
+  if (substance === "SLEEPING" || substance === "OTHER") {
+    const isSleep = substance === "SLEEPING";
+    return {
+      steps: [
+        {
+          title: "برنامه‌ریزی فقط با هماهنگی راهنما",
+          kind: "START",
+          dosesPerDay: 3,
+          perDoseCc: 0,
+          days: 1,
+          note: isSleep
+            ? "برای قرص‌های خواب جدول محاسباتی مستقلی در متد DST ثبت نشده است؛ نوع دارو، مقدار و زمان‌بندی را فقط راهنمای تو تعیین می‌کند."
+            : "برای این ماده برنامهٔ محاسباتی پیش‌فرضی وجود ندارد؛ نوع ماده و برنامهٔ درمان را فقط با هماهنگی راهنمای خودت ثبت کن.",
+        },
+      ],
+      startDailyCc: 0,
+      capDailyCc: 0,
+      notes: [
+        isSleep
+          ? "«راهنما و راهنمایی»: قرص‌های خواب و آرام‌بخش هم روی سیستم ایکس اثر می‌گذارند (آنتی‌اکس)؛ درمان اعتیاد با جایگزینی این داروها نتیجه‌بخش نبوده است."
+          : "متد DST برای تریاک، شیره، سوخته، هروئین، متادون، ترامادول، الکل و محرک‌ها جدول دارد؛ بقیهٔ مواد فقط با دستور راهنما.",
+      ],
+    };
+  }
+  if (substance === "OPIUM_SMOKED" || substance === "SOKHTE") {
     const steps: PlanStep[] = [
       { title: "شروع — روزهای نخست", kind: "START", dosesPerDay: 3, perDoseCc: 1.0, days: 3, note: "هر وعده ۱cc (روزانه ۳cc)؛ پس از گذشت ۳ روز، مقدار دو برابر می‌شود" },
       { title: "پله صعودی", kind: "BUILDUP", dosesPerDay: 3, perDoseCc: 2.0, days: STEP_DAYS, note: "هر وعده ۲cc (روزانه ۶cc)" },
@@ -519,7 +577,7 @@ function buildPlan(settings: UserSettings): PersonalPlan {
       capDailyCc: 7.5,
       notes: [
         "برنامه ۶–۳ اصلاحیه ۱۳۹۸: شروع با هر وعده ۱cc، دو برابر کردن پس از ۳ روز، صعود تا سقف ۷٫۵cc و پس از ۲۲ روز توقف، کاهش طبق جدول.",
-        "مصرف کشیدنی بلافاصله قطع و همزمان OT شروع می‌شود؛ برای تریاک و شیره کشیدنی به هر مقدار و هر شیوه و همچنین کرک همین برنامه اجرا می‌شود.",
+        "مصرف کشیدنی بلافاصله قطع و همزمان OT شروع می‌شود؛ برای تریاک، شیره کشیدنی، سوخته و کرک به هر مقدار و هر شیوه همین برنامه اجرا می‌شود.",
       ],
     };
   }
@@ -609,7 +667,7 @@ function buildPlan(settings: UserSettings): PersonalPlan {
         capDailyCc: 16.5,
         notes: [
           "حالت اول اصلاحیه (≤ ۱۶٫۵cc): دقیقاً به همان میزان متادون، OT تجویز و وعده‌به‌وعده (ظهر، صبح، شب) جایگزین می‌شود.",
-          "یک قرص متادون ۵ میلی‌گرمی = ۱cc شربت متادون = ۱cc شربت OT؛ قرص ۱۰mg = ۲cc و قرص ۲۰mg = ۸cc.",
+          "یک قرص متادون ۵ میلی‌گرمی = ۱cc شربت متادون = ۱cc شربت OT؛ قرص ۱۰mg = ۲cc، قرص ۲۰mg = ۴cc و قرص ۴۰mg = ۸cc.",
         ],
       };
     }
@@ -630,7 +688,7 @@ function buildPlan(settings: UserSettings): PersonalPlan {
   }
   if (substance === "TRAMADOL") {
     const pills = consumption > 0 ? consumption : 4.0;
-    const computed = r2(pills * 1.5);
+    const computed = r2(pills * 0.5); // قرص ۱۰۰ میلی‌گرمی = ۰٫۵cc — طبق پانویس اصلاحیهٔ بخش ۶ و جدول «راهنما و راهنمایی»
     const daily = Math.min(Math.max(computed, 6.0), 16.5);
     const raised = computed < 6.0;
     const per = r2(daily / 3);
@@ -646,7 +704,7 @@ function buildPlan(settings: UserSettings): PersonalPlan {
       startDailyCc: daily,
       capDailyCc: 16.5,
       notes: [
-        "هر قرص ترامادول ۱۰۰ میلی‌گرمی = ۱٫۵cc شربت OT؛ بنابراین قرص ۲۰۰ میلی‌گرمی = ۳cc (اصلاحیه بخش ۶ و پانویس آن).",
+        "هر قرص ترامادول ۱۰۰ میلی‌گرمی = ۰٫۵cc شربت OT و قرص ۲۰۰ میلی‌گرمی = ۱cc (پانویس اصلاحیهٔ بخش ۶ و جدول «راهنما و راهنمایی»).",
         "برنامه دقیقاً مانند متادون اجرا می‌شود (جایگزینی هفتگی وعده‌به‌وعده + ۲۲ روز تثبیت)." +
           (raised ? " چون مقدار محاسبه‌شده کمتر از ۶cc بود، تا سقف ۶cc بالا برده می‌شود." : ""),
       ],
@@ -738,6 +796,26 @@ const LETTER_ORDER = ["الف", "ب", "ج", "د"] as const;
 
 type QuizItem = { question: string; options: string[]; correctIndex: number; explanation: string; cat: string };
 
+/* ذخیره‌گاه سؤال‌های غلط — مبنای کارت «مرور اشتباه‌ها» */
+const WRONG_KEY = "hamrah_wrong_v1";
+const loadWrong = (): QuizItem[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(WRONG_KEY) ?? "[]") as unknown;
+    return Array.isArray(v)
+      ? (v as QuizItem[]).filter((x) => x && typeof x.question === "string" && Array.isArray(x.options) && typeof x.correctIndex === "number")
+      : [];
+  } catch {
+    return [];
+  }
+};
+const saveWrong = (list: QuizItem[]) => {
+  try {
+    localStorage.setItem(WRONG_KEY, JSON.stringify(list.slice(-120)));
+  } catch {
+    /* بی‌صدا */
+  }
+};
+
 const CORE_DST: QuizItem[] = [
   { question: "در متد DST، حرف S به چه معناست؟", options: ["شروع درمان", "پله ۲۱ روزه", "سقف مصرف", "ثبت روزانه"], correctIndex: 1, explanation: "S = Step یعنی پله ۲۱ روزه؛ D ضریب ۰٫۸ و T حداقل ۱۰ ماه درمان است.", cat: "متد DST" },
   { question: "ضریب کاهش مصرف در هر پله متد DST چقدر است؟", options: ["۰٫۵", "۰٫۸", "۱٫۲", "۲"], correctIndex: 1, explanation: "در هر پله، مقدار مصرف در ضریب ۰٫۸ (D = Dezhakam) ضرب می‌شود.", cat: "متد DST" },
@@ -751,7 +829,7 @@ const CORE_DST: QuizItem[] = [
   { question: "در درمان هروئین، شروع OT از روز نخست با روزانه چند سی‌سی است؟", options: ["۳ سی‌سی", "۶ سی‌سی", "۱۰٫۵ سی‌سی", "۱۶٫۵ سی‌سی"], correctIndex: 1, explanation: "اصلاحیه ۱۳۹۸: از روز نخست روزانه ۶cc (هر وعده ۲cc)؛ سقف برنامه ۱۰٫۵cc است.", cat: "متد DST" },
 ];
 
-const CORE_CAT = "هستهٔ DST";
+const CORE_CAT = "متد DST";
 
 const mcqToQuiz = (m: BankMcq): QuizItem => {
   const keys: string[] = [];
@@ -1528,6 +1606,17 @@ function EntryDialog(props: {
 }
 
 /* ================================ آزمون ================================ */
+/* پنج کارت اصلی صفحهٔ شروع آزمون — طرح مصوب «عکس خوب» + حفظ امکانات فعلی */
+const QUIZ_LENS = [10, 20, 30, 40, 50, 60, 70, 100];
+type ExamCardId = "term" | "cat" | "quick" | "review" | "written";
+const EXAM_CARDS: { id: ExamCardId; icon: typeof BookOpen; color: string; title: string; sub: string }[] = [
+  { id: "term", icon: ClipboardList, color: "#F97316", title: "آزمون ترم", sub: "۱۰۰ سؤال · ۴۵ دقیقه — استاندارد جلسهٔ ترم" },
+  { id: "cat", icon: Layers, color: "#14B8A6", title: "تمرین دسته‌ای", sub: "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی" },
+  { id: "quick", icon: Timer, color: "#F59E0B", title: "آزمون سریع", sub: "۵ سؤال — چند دقیقه وقت می‌برد" },
+  { id: "review", icon: RotateCcw, color: "#EC4899", title: "مرور اشتباه‌ها", sub: "فقط سؤال‌هایی که غلط جواب دادی" },
+  { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "۲۲۷۰ سؤال با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
+];
+
 function ExamScreen({ c }: { c: ThemeColors }) {
   const [bank, setBank] = useState<Bank | null>(null);
   const [bankError, setBankError] = useState(false);
@@ -1546,6 +1635,11 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   const [quizCats, setQuizCats] = useState<Set<string>>(new Set());
   const [flashCats, setFlashCats] = useState<Set<string>>(new Set());
   const [noKeyMsg, setNoKeyMsg] = useState(false);
+  /* کارت انتخاب‌شدهٔ صفحهٔ شروع (طرح ۵ کارت) + ذخیره‌گاه غلط‌ها */
+  const [card, setCard] = useState<null | "term" | "cat" | "quick" | "review" | "written">(null);
+  const [isReview, setIsReview] = useState(false);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [reviewEmpty, setReviewEmpty] = useState(false);
 
   useEffect(() => {
     fetch("/questionbank.json?v=2", { cache: "no-store" })
@@ -1578,13 +1672,31 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     return set;
   }, [bankQaUsable]);
 
-  const startQuiz = () => {
+  const startQuiz = (opts?: { len?: number; cats?: Set<string>; review?: boolean }) => {
     if (!bank) return;
-    const core = quizCats.size === 0 || quizCats.has(CORE_CAT) ? CORE_DST : [];
-    const fromBank = bankMcqUsable
-      .filter((m) => quizCats.size === 0 || quizCats.has(m.cat))
-      .map(mcqToQuiz);
-    const list = shuffle([...core, ...fromBank]).slice(0, Math.min(quizLen, core.length + fromBank.length));
+    if (opts?.review) {
+      const stored = loadWrong();
+      if (stored.length === 0) {
+        setReviewEmpty(true);
+        return;
+      }
+      setReviewEmpty(false);
+      setIsReview(true);
+      const list = shuffle(stored);
+      setQuizList(list);
+      setQuizPicks(new Array(list.length).fill(null));
+      setQIndex(0);
+      setChosen(null);
+      setAnswered(false);
+      setPhase("running");
+      return;
+    }
+    setIsReview(false);
+    const cats = opts?.cats ?? quizCats;
+    const len = opts?.len ?? quizLen;
+    const core = cats.size === 0 || cats.has(CORE_CAT) ? CORE_DST : [];
+    const fromBank = bankMcqUsable.filter((m) => cats.size === 0 || cats.has(m.cat)).map(mcqToQuiz);
+    const list = shuffle([...core, ...fromBank]).slice(0, Math.min(len, core.length + fromBank.length));
     if (list.length === 0) {
       setNoKeyMsg(true);
       return;
@@ -1619,6 +1731,19 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     setReveal(flashScores[clamped] != null);
   };
 
+  /* ذخیرهٔ سؤال‌های غلط — در حالت مرور، فقط غلط‌های دوباره باقی می‌مانند */
+  const recordWrongs = () => {
+    const wrongItems = quizList.filter((q, i) => quizPicks[i] != null && quizPicks[i] !== q.correctIndex);
+    if (isReview) {
+      saveWrong(wrongItems);
+    } else {
+      const merged = loadWrong();
+      for (const w of wrongItems) if (!merged.some((x) => x.question === w.question)) merged.push(w);
+      saveWrong(merged);
+    }
+    setWrongCount(loadWrong().length);
+  };
+
   const quizScore = quizPicks.reduce((s, p, i) => (p != null && quizList[i] && p === quizList[i].correctIndex ? s + 1 : s), 0);
   const quizWrong = quizPicks.reduce((s, p, i) => (p != null && quizList[i] && p !== quizList[i].correctIndex ? s + 1 : s), 0);
   const known = flashScores.reduce((s, v) => (v === true ? s + 1 : s), 0);
@@ -1639,152 +1764,266 @@ function ExamScreen({ c }: { c: ThemeColors }) {
 
       {phase === "start" && (
         <>
-          <SectionCard c={c}>
-            <div className="flex gap-2">
-              {(
-                [
-                  ["quiz", "🎯 آزمون تستی"],
-                  ["flash", "📖 تمرین تشریحی"],
-                ] as const
-              ).map(([m, label]) => (
+          {/* پنج کارت اصلی صفحهٔ شروع — طرح مصوب «عکس خوب» + حفظ امکانات فعلی */}
+          {EXAM_CARDS.map((cd) => {
+            const on = card === cd.id;
+            const Icon = cd.icon;
+            return (
+              <div key={cd.id} className="flex flex-col gap-2">
                 <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className="flex-1 rounded-xl border py-2.5 text-center text-[13px] font-bold active:scale-[0.98]"
+                  onClick={() => {
+                    if (on) {
+                      setCard(null);
+                      return;
+                    }
+                    setCard(cd.id);
+                    setReviewEmpty(false);
+                    if (cd.id === "written") setMode("flash");
+                    else setMode("quiz");
+                    if (cd.id === "term") setQuizLen(100);
+                    if (cd.id === "cat" && quizLen > 50) setQuizLen(20);
+                  }}
+                  aria-expanded={on}
+                  className="flex w-full items-center gap-3 rounded-2xl border px-3 py-3.5 text-right active:scale-[0.99]"
                   style={{
-                    background: mode === m ? `${NAV_COLORS.exam}14` : c.surface,
-                    borderColor: mode === m ? NAV_COLORS.exam : c.outline,
-                    color: mode === m ? NAV_COLORS.exam : c.onSurfaceVariant,
+                    background: on ? `${cd.color}0d` : c.surface,
+                    borderColor: on ? cd.color : c.outlineVariant,
+                    borderWidth: on ? 1.75 : 1.25,
+                    boxShadow: on ? `0 4px 14px -6px ${cd.color}55` : "none",
                   }}
                 >
-                  {label}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14.5px] font-black" style={{ color: on ? cd.color : c.onBg }}>
+                      {cd.title}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-5" style={{ color: c.onSurfaceVariant }}>
+                      {cd.sub}
+                    </span>
+                  </span>
+                  <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full" style={{ background: `${cd.color}1f` }}>
+                    <Icon size={21} color={cd.color} strokeWidth={2.1} />
+                    {cd.id === "review" && wrongCount > 0 && (
+                      <span
+                        className="absolute -left-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[9.5px] font-black text-white"
+                        style={{ background: cd.color }}
+                      >
+                        {faNum(wrongCount)}
+                      </span>
+                    )}
+                  </span>
                 </button>
-              ))}
-            </div>
-          </SectionCard>
 
-          {mode === "quiz" ? (
-            <>
-              <SectionCard c={c} title="آزمون تستی با کلید">
-                <p className="text-[12px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
-                  {bank
-                    ? `${faNum(CORE_DST.length)} سؤال هستهٔ متد DST + ${faNum(bankMcqUsable.length)} سؤال تستیِ بانک با کلید تأییدشده. پاسخ درست بلافاصله با توضیح نشان داده می‌شود.`
-                    : "در حال بارگذاری بانک سؤال…"}
-                </p>
-                <p className="mt-1 text-center text-[12.5px] font-bold" style={{ color: c.onBg }}>
-                  تعداد سؤال:
-                </p>
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {[10, 20, 30, 40, 50, 60, 70].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setQuizLen(n)}
-                      className="rounded-full border px-3 py-1.5 text-[12.5px] font-bold active:scale-[0.98]"
-                      style={{
-                        background: quizLen === n ? `${NAV_COLORS.exam}14` : c.surface,
-                        borderColor: quizLen === n ? NAV_COLORS.exam : c.outlineVariant,
-                        color: quizLen === n ? NAV_COLORS.exam : c.onSurfaceVariant,
-                      }}
-                    >
-                      {faNum(n)}
-                    </button>
-                  ))}
-                </div>
-              </SectionCard>
-
-              <SectionCard c={c} title="دستهٔ منابع (اختیاری)" accent={NAV_COLORS.exam}>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {quizCatOptions.map((cat) => {
-                    const on = quizCats.has(cat);
-                    return (
+                {on && cd.id === "term" && (
+                  <SectionCard c={c} title="تنظیم آزمون ترم" accent={cd.color}>
+                    <p className="text-[11.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+                      همهٔ منابع قاطی — مثل جلسهٔ ترم؛ ۱۰۰ سؤال استاندارد یا هر تعدادی که انتخاب کنی.
+                    </p>
+                    <p className="mt-1 text-center text-[12.5px] font-bold" style={{ color: c.onBg }}>
+                      تعداد سؤال:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {QUIZ_LENS.map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setQuizLen(n)}
+                          className="rounded-full border px-3 py-1.5 text-[12.5px] font-bold active:scale-[0.98]"
+                          style={{
+                            background: quizLen === n ? `${cd.color}14` : c.surface,
+                            borderColor: quizLen === n ? cd.color : c.outlineVariant,
+                            color: quizLen === n ? cd.color : c.onSurfaceVariant,
+                          }}
+                        >
+                          {faNum(n)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-center pt-1">
                       <button
-                        key={cat}
-                        onClick={() => setQuizCats(on ? new Set([...quizCats].filter((x) => x !== cat)) : new Set([...quizCats, cat]))}
-                        className="w-[31%] rounded-2xl border px-1 py-3.5 text-center text-[11.5px] font-bold leading-5 active:scale-[0.98]"
-                        style={{
-                          background: on ? `${NAV_COLORS.exam}14` : c.surface,
-                          borderColor: on ? NAV_COLORS.exam : c.outlineVariant,
-                          color: on ? NAV_COLORS.exam : c.onSurfaceVariant,
-                        }}
+                        onClick={() => startQuiz({ len: quizLen, cats: new Set() })}
+                        disabled={!bank}
+                        className="rounded-xl px-6 py-2.5 text-[13.5px] font-bold active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: cd.color, color: "#FFFFFF" }}
                       >
-                        {cat}
+                        شروع آزمون ترم
                       </button>
-                    );
-                  })}
-                </div>
-                <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
-                  هیچ دسته‌ای انتخاب نشود = همهٔ منابع
-                </p>
-              </SectionCard>
+                    </div>
+                  </SectionCard>
+                )}
 
-              <button
-                onClick={startQuiz}
-                disabled={!bank}
-                className="w-full rounded-xl py-3 text-[14px] font-bold active:scale-[0.99] disabled:opacity-50"
-                style={{ background: NAV_COLORS.exam, color: "#FFFFFF" }}
-              >
-                شروع آزمون
-              </button>
-
-              {noKeyMsg && (
-                <SectionCard c={c}>
-                  <p className="text-[11.5px] leading-5" style={{ color: RED_NO, textAlign: "justify" }}>
-                    برای دسته‌های انتخابی هنوز کلید پاسخ‌ها در بانک ثبت نشده است؛ فعلاً دسته‌های دیگر را انتخاب کن یا هیچ دسته‌ای را انتخاب نکن تا از همهٔ منابع کلیددار سؤال بیاید.
-                  </p>
-                </SectionCard>
-              )}
-
-              <SectionCard c={c}>
-                <p className="text-[11px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
-                  💡 نکته: پاسخ همهٔ سؤال‌های هسته در صفحهٔ «پروتکل» و بخش‌های آموزشی برنامه وجود دارد؛ اگر بخواهی می‌توانی اول مرور کنی.
-                </p>
-              </SectionCard>
-            </>
-          ) : (
-            <>
-              <SectionCard c={c} title="تمرین با سؤال‌های تشریحی">
-                <p className="text-[12px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
-                  {bank
-                    ? `${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
-                    : "در حال بارگذاری بانک سؤال…"}
-                </p>
-              </SectionCard>
-
-              <SectionCard c={c} title="دستهٔ منابع (اختیاری)" accent={NAV_COLORS.exam}>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {flashCatOptions.map((cat) => {
-                    const on = flashCats.has(cat);
-                    return (
+                {on && cd.id === "cat" && (
+                  <SectionCard c={c} title="انتخاب منبع" accent={cd.color}>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {quizCatOptions.map((cat) => {
+                        const sel = quizCats.has(cat);
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() =>
+                              setQuizCats(sel ? new Set([...quizCats].filter((x) => x !== cat)) : new Set([...quizCats, cat]))
+                            }
+                            className="w-[31%] rounded-2xl border px-1 py-3.5 text-center text-[11.5px] font-bold leading-5 active:scale-[0.98]"
+                            style={{
+                              background: sel ? `${cd.color}14` : c.surface,
+                              borderColor: sel ? cd.color : c.outlineVariant,
+                              color: sel ? cd.color : c.onSurfaceVariant,
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+                      هیچ دسته‌ای انتخاب نشود = همهٔ منابع
+                    </p>
+                    <p className="mt-1 text-center text-[12.5px] font-bold" style={{ color: c.onBg }}>
+                      تعداد سؤال:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {QUIZ_LENS.map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setQuizLen(n)}
+                          className="rounded-full border px-3 py-1.5 text-[12.5px] font-bold active:scale-[0.98]"
+                          style={{
+                            background: quizLen === n ? `${cd.color}14` : c.surface,
+                            borderColor: quizLen === n ? cd.color : c.outlineVariant,
+                            color: quizLen === n ? cd.color : c.onSurfaceVariant,
+                          }}
+                        >
+                          {faNum(n)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex justify-center pt-1">
                       <button
-                        key={cat}
-                        onClick={() => setFlashCats(on ? new Set([...flashCats].filter((x) => x !== cat)) : new Set([...flashCats, cat]))}
-                        className="w-[31%] rounded-2xl border px-1 py-3.5 text-center text-[11.5px] font-bold leading-5 active:scale-[0.98]"
-                        style={{
-                          background: on ? `${NAV_COLORS.exam}14` : c.surface,
-                          borderColor: on ? NAV_COLORS.exam : c.outlineVariant,
-                          color: on ? NAV_COLORS.exam : c.onSurfaceVariant,
-                        }}
+                        onClick={() => startQuiz({ len: quizLen, cats: quizCats })}
+                        disabled={!bank}
+                        className="rounded-xl px-6 py-2.5 text-[13.5px] font-bold active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: cd.color, color: "#FFFFFF" }}
                       >
-                        {cat}
+                        شروع تمرین دسته‌ای
                       </button>
-                    );
-                  })}
-                </div>
-                <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
-                  هیچ دسته‌ای انتخاب نشود = همهٔ منابع
-                </p>
-              </SectionCard>
+                    </div>
+                  </SectionCard>
+                )}
 
-              <button
-                onClick={startFlash}
-                disabled={!bank}
-                className="w-full rounded-xl py-3 text-[14px] font-bold active:scale-[0.99] disabled:opacity-50"
-                style={{ background: NAV_COLORS.exam, color: "#FFFFFF" }}
-              >
-                شروع تمرین
-              </button>
-            </>
+                {on && cd.id === "quick" && (
+                  <SectionCard c={c} accent={cd.color}>
+                    <p className="text-[11.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+                      ۵ سؤال از همهٔ منابع، بدون هیچ تنظیمی — برای وقتی که فقط چند دقیقه وقت داری.
+                    </p>
+                    <div className="flex justify-center pt-1">
+                      <button
+                        onClick={() => startQuiz({ len: 5, cats: new Set() })}
+                        disabled={!bank}
+                        className="rounded-xl px-6 py-2.5 text-[13.5px] font-bold active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: cd.color, color: "#FFFFFF" }}
+                      >
+                        شروع آزمون ۵ سؤالی
+                      </button>
+                    </div>
+                  </SectionCard>
+                )}
+
+                {on && cd.id === "review" && (
+                  <SectionCard c={c} accent={cd.color}>
+                    {wrongCount > 0 ? (
+                      <>
+                        <p className="text-[11.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+                          {faNum(wrongCount)} سؤال غلط ذخیره شده است؛ هر سؤالی که این‌جا درست جواب بدهی از فهرست مرور حذف می‌شود.
+                        </p>
+                        <div className="flex justify-center pt-1">
+                          <button
+                            onClick={() => startQuiz({ review: true })}
+                            className="rounded-xl px-6 py-2.5 text-[13.5px] font-bold active:scale-[0.98]"
+                            style={{ background: cd.color, color: "#FFFFFF" }}
+                          >
+                            شروع مرور اشتباه‌ها
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-[11.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+                        هنوز سؤال غلطی ذخیره نشده — اول یک آزمون بده؛ هر سؤالی که غلط جواب بدهی خودکار این‌جا ذخیره می‌شود تا دفعهٔ بعد بیشتر تکرارش کنی.
+                      </p>
+                    )}
+                    {reviewEmpty && (
+                      <p className="text-center text-[11px] font-bold" style={{ color: RED_NO }}>
+                        هنوز غلطی ذخیره نشده است.
+                      </p>
+                    )}
+                  </SectionCard>
+                )}
+
+                {on && cd.id === "written" && (
+                  <SectionCard c={c} title="تمرین تشریحی" accent={cd.color}>
+                    <p className="text-[12px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
+                      {bank
+                        ? `${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
+                        : "در حال بارگذاری بانک سؤال…"}
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {flashCatOptions.map((cat) => {
+                        const sel = flashCats.has(cat);
+                        return (
+                          <button
+                            key={cat}
+                            onClick={() =>
+                              setFlashCats(sel ? new Set([...flashCats].filter((x) => x !== cat)) : new Set([...flashCats, cat]))
+                            }
+                            className="w-[31%] rounded-2xl border px-1 py-3.5 text-center text-[11.5px] font-bold leading-5 active:scale-[0.98]"
+                            style={{
+                              background: sel ? `${cd.color}14` : c.surface,
+                              borderColor: sel ? cd.color : c.outlineVariant,
+                              color: sel ? cd.color : c.onSurfaceVariant,
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+                      هیچ دسته‌ای انتخاب نشود = همهٔ منابع
+                    </p>
+                    <div className="flex justify-center pt-1">
+                      <button
+                        onClick={startFlash}
+                        disabled={!bank}
+                        className="rounded-xl px-6 py-2.5 text-[13.5px] font-bold active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: cd.color, color: "#FFFFFF" }}
+                      >
+                        شروع تمرین
+                      </button>
+                    </div>
+                  </SectionCard>
+                )}
+              </div>
+            );
+          })}
+
+          <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+            {bank
+              ? `${faNum(bankMcqUsable.length)} سؤال تستی کلیددار + ${faNum(CORE_DST.length)} سؤال متد DST · ${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار`
+              : "در حال بارگذاری بانک سؤال…"}
+          </p>
+
+          {noKeyMsg && (
+            <SectionCard c={c}>
+              <p className="text-[11.5px] leading-5" style={{ color: RED_NO, textAlign: "justify" }}>
+                برای دسته‌های انتخابی هنوز کلید پاسخ‌ها در بانک ثبت نشده است؛ فعلاً دسته‌های دیگر را انتخاب کن یا هیچ دسته‌ای را انتخاب نکن تا از همهٔ منابع کلیددار سؤال بیاید.
+              </p>
+            </SectionCard>
           )}
+
+          {/* کارت توضیح پایین — متن مصوب */}
+          <div className="rounded-2xl p-3.5" style={{ background: "#FCE7F3", border: "1px solid #F9A8D4" }}>
+            <p className="text-[11.5px] leading-6" style={{ color: "#9D174D", textAlign: "justify" }}>
+              سؤال‌ها هر بار به‌طور تصادفی و بدون ترتیب مشخص انتخاب می‌شوند؛ زیر هر سؤال برچسب منبع می‌آید (مثلاً «وادی هشتم») و چیزی که غلط جواب بدی دفعهٔ بعد بیشتر تکرار می‌شود.
+            </p>
+          </div>
+
           {bankError && (
             <SectionCard c={c}>
               <p className="text-[11.5px] leading-5" style={{ color: RED_NO }}>
@@ -1865,7 +2104,10 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                   <button
                     onClick={() => {
                       if (qIndex + 1 < quizList.length) goQuiz(qIndex + 1);
-                      else setPhase("done");
+                      else {
+                        recordWrongs();
+                        setPhase("done");
+                      }
                     }}
                     className="rounded-xl px-5 py-2.5 text-[13px] font-bold active:scale-[0.98]"
                     style={{ background: NAV_COLORS.exam, color: "#FFFFFF" }}
@@ -1902,7 +2144,11 @@ function ExamScreen({ c }: { c: ThemeColors }) {
               ✓ {faNum(quizScore)} · ✗ {faNum(quizWrong)}
             </p>
             <button
-              onClick={() => setPhase("start")}
+              onClick={() => {
+                recordWrongs();
+                setPhase("start");
+                setCard(null);
+              }}
               className="rounded-xl border px-4 py-2 text-[12.5px] font-bold active:scale-[0.99]"
               style={{ borderColor: c.outline, color: NAV_COLORS.exam, background: c.surface }}
             >
@@ -3041,34 +3287,6 @@ export default function Page() {
   const c = theme.c;
   const clock = useClock();
 
-  /* فلش سبز «برو پایین» — فقط وقتی محتوای تب بلندتر از صفحه است دیده می‌شود (سبک کادر سبز عکس ۶) */
-  const [canScrollDown, setCanScrollDown] = useState(false);
-  const updateCanScrollDown = useMemo(
-    () => () => {
-      const el = document.getElementById("app-scroll");
-      if (!el) return setCanScrollDown(false);
-      setCanScrollDown(el.scrollTop + el.clientHeight < el.scrollHeight - 48);
-    },
-    []
-  );
-  useEffect(() => {
-    if (!mounted) return;
-    const el = document.getElementById("app-scroll");
-    if (!el) return;
-    const raf = requestAnimationFrame(updateCanScrollDown);
-    el.addEventListener("scroll", updateCanScrollDown, { passive: true });
-    const ro = new ResizeObserver(updateCanScrollDown);
-    ro.observe(el);
-    if (el.firstElementChild) ro.observe(el.firstElementChild);
-    const t = setTimeout(updateCanScrollDown, 250);
-    return () => {
-      cancelAnimationFrame(raf);
-      el.removeEventListener("scroll", updateCanScrollDown);
-      ro.disconnect();
-      clearTimeout(t);
-    };
-  }, [tab, mounted, updateCanScrollDown]);
-
   const go = (t: TabId) => {
     setTab(t);
     document.getElementById("app-scroll")?.scrollTo({ top: 0 });
@@ -3176,21 +3394,6 @@ export default function Page() {
               );
             })}
           </nav>
-
-          {/* فلش کوچک «برو پایین» — بدون دایرهٔ بیرونی، فقط فلشِ لخت؛ رنگش = رنگ تبِ فعال */}
-          {mounted && canScrollDown && (
-            <button
-              onClick={() => {
-                const el = document.getElementById("app-scroll");
-                el?.scrollBy({ top: el.clientHeight * 0.85, behavior: "smooth" });
-              }}
-              aria-label="رفتن به پایین صفحه"
-              className="absolute bottom-[78px] left-1/2 z-20 -translate-x-1/2 p-1 transition-transform active:scale-90"
-              style={{ color: NAV_COLORS[tab], filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))" }}
-            >
-              <ChevronDown size={19} strokeWidth={2.6} />
-            </button>
-          )}
         </div>
       </div>
     </main>
