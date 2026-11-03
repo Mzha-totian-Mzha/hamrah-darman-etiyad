@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import ir.mosafir.recovery.ui.FabScrollEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -198,7 +200,11 @@ fun HomeScreen(
         QUOTES[dayOfYear % QUOTES.size]
     }
 
+    val listState = rememberLazyListState()
+    FabScrollEffect(listState)
+
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -467,7 +473,7 @@ fun HomeScreen(
         // ۸) یادآوری
         item {
             NoticeCard(
-                text = "این برنامه همراه آموزشی است و به‌هیچ‌وجه جایگزین راهنما، لژیون و نظر پزشک نیست. هر تغییری در پله‌ها فقط با هماهنگی راهنمای خود انجام بده."
+                text = "این برنامه همراه آموزشی است و به‌هیچ‌وجه جایگزین راهنما و لژیون نیست. هر تغییری در پله‌ها فقط با هماهنگی راهنمای خود انجام بده."
             )
         }
     }

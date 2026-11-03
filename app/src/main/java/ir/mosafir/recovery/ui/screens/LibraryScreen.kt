@@ -1,11 +1,14 @@
 package ir.mosafir.recovery.ui.screens
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -26,6 +29,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import ir.mosafir.recovery.ui.FabScrollEffect
+import ir.mosafir.recovery.ui.ScrollDownFab
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,12 +44,14 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -99,8 +107,6 @@ private data class LibItem(
 /** پیام امروز (تأثیرگذار چرخشی) — از featured.json پیش‌نمایش وب */
 private data class FeaturedItem(val id: String, val title: String, val sub: String, val text: String)
 
-/** آرام‌سازی ذهن — متن‌های آرام‌بخش چرخشی */
-private data class CalmItem(val id: String, val title: String, val text: String)
 
 /** مثلث آموزشی — هر مثلث دقیقاً سه ضلع دارد که هرکدام روی رأس خودش نوشته می‌شود */
 private data class TriDef(val n: Int, val title: String, val sides: List<String>)
@@ -217,49 +223,6 @@ private val FEATURED = listOf(
     )
 )
 
-/** آرام‌سازی ذهن — ۱۰ متن؛ دقیقاً همسان با featured.json پیش‌نمایش وب */
-private val CALM = listOf(
-    CalmItem(
-        "c-nafas", "نفس‌های آرام",
-        "چشمانت را ببند و یک نفس عمیق بکش… حس کن هوا تا عمق سینه‌ات می‌رود… چهار ثانیه نگه دار… و آرام، آرام رها کن… با هر بازدم، سنگینیِ امروز هم کمی سبک‌تر می‌شود… سه نفس دیگر همین‌طور… تو در همین لحظه امن هستی؛ فقط نفس بکش و اجازه بده آرامش، جای اضطراب را بگیرد."
-    ),
-    CalmItem(
-        "c-baran", "زیر باران سبز",
-        "تصور کن روی نیمکتی چوبی نشسته‌ای و جنگل، آرام زیر باران است… صدای قطره‌ها روی برگ‌ها مثل دست‌هایی است که شانه‌هایت را نوازش می‌کنند… بوی خاک و سبزه فضا را تازه کرده… اینجا هیچ عجله‌ای نیست؛ زمان، همقدمِ توست… چند لحظه فقط شنوندهٔ باران باش؛ ذهنت، مثل برگ‌ها، آرام می‌شود."
-    ),
-    CalmItem(
-        "c-shab", "سپردن شب",
-        "شب، وقتِ سپردن است؛ نه حساب‌رسی. هر چه امروز سخت گذشت، روی کاغذی بنویس و بگذار با غروب، تمام شود… چشمانت را ببند و به خودت بگو: امروز هر چه توانستم، کردم… فردا، خودش روزی تازه با توانی تازه است… خوابِ آرام، پاداشِ کسی است که روزش را سپرده؛ تو سپردی. شب بخیر، مسافر."
-    ),
-    CalmItem(
-        "c-sokut", "سکوتِ بین دو نفس",
-        "در دلِ هر روز شلوغ، یک گوشهٔ ساکت هست؛ کافی است پیدااش کنی… چاییت را دم کن و فقط به بخارش نگاه کن… بدون گوشی، بدون فکرِ فردا… این سکوتِ کوچک، مثل توقف‌گاهِ میان راه است؛ رانندهٔ خسته اینجا نفسش را تازه می‌کند… تو هم نفس تازه کن؛ کارهایت منتظر می‌مانند، اما آرامشت را نباید از دست بدهی."
-    ),
-    CalmItem(
-        "c-sehhat", "قدردانی از بدن",
-        "بدنت، این سال‌ها در سکوت سختی کشید و هنوز با تو مانده… همین حالا از قلبت تشکر کن که بی‌وقفه می‌تپد… از ریه‌هایت که هر ثانیه هوا می‌رسانند… از پاهایت که تو را نگه داشته‌اند… وقتی به بدنت محبت کنی، او هم به تو سلامتی برمی‌گرداند؛ ورزش و خواب و غذای خوب، زبانِ همین محبت‌اند. بدنت، خانهٔ توست؛ آن را دوست بدار."
-    ),
-    CalmItem(
-        "c-darya", "موج و ساحل",
-        "تصور کن پای ساحل ایستاده‌ای… موج‌ها می‌آیند و می‌روند؛ مثل فکرها و غم‌ها… تو لازم نیست با هر موجی برانگیخته شوی؛ مثل ساحل، فقط باش… موج می‌آید، خیس می‌شوی، و موج پس می‌رود؛ اما ساحل، همان‌جا می‌ماند… غم‌ها هم همین‌اند؛ می‌آیند و می‌روند… تو ساحل باش؛ عمیق و آرام."
-    ),
-    CalmItem(
-        "c-sahar", "سحرگاهان",
-        "سحر، خنک‌ترین و صاف‌ترین لحظهٔ روز است… آسمان هنوز کامل روشن نشده و دنیا در آرامشِ قبل از شروع است… این ساعت، مالِ توست؛ قبل از آنکه دنیا بیدار شود و بخواهد از تو چیزی… یک لیوان آب، چند حرکت کششی، چند نفسِ عمیق… کسی که صبحش را آرام شروع کند، کل روزش آرام می‌گذرد. صبحت بخیر، مسافر."
-    ),
-    CalmItem(
-        "c-afu", "بخشیدن، سبک شدن",
-        "بخی که کوله‌ات سبک شود… از خودت ببخش برای روزهایی که نمی‌دانستی… از گذشته‌ات که دیگر تغییر نمی‌کند… بخشیدن یعنی گذاشتنِ بارِ اضافه بر زمین؛ نه اینکه کارِ دیگری درست بوده، بلکه تو دیگر حاملِ آن نیستی… با هر بخشش، یک قدم سبک‌تر و آرام‌تر می‌شوی؛ سفر، با کولهٔ سبک لذت‌بخش است."
-    ),
-    CalmItem(
-        "c-mehr", "حضورِ مهربان",
-        "امروز به یک نفر، فقط مهربانی هدیه بده… یک سلام گرم، یک پیام کوتاه، یک لبخند… وقتی حس خوب می‌دهی به دیگران، مغز تو هم همان حس را درون خودت تکرار می‌کند… مهربانی، تنها دارویی است که هم می‌دهیم و هم می‌ماند در ما… این را امروز امتحان کن؛ شب که به سقف نگاه می‌کنی، به آرامشی می‌رسی که ساختهٔ خودت بوده."
-    ),
-    CalmItem(
-        "c-yadekhoda", "یاد او، آرامش دل‌ها",
-        "«الا بذکر الله تطمئن القلوب» — دل‌ها فقط با یاد او آرام می‌گیرد… چشمانت را ببند و احساس کن در پناهی بزرگ هستی؛ پناهی که هیچ موجی نمی‌تواند بلرزانَدش… تو تنها نیستی؛ این راه با توست، این نفس با توست… هر چه در دل داری بگذار بگذرد؛ تو در امنِ او هستی… آرام باش؛ مراقبت می‌شود."
-    )
-)
 
 /** فهرست کامل ۵۸ مثلث جزوهٔ رسمی «مثلث‌های آموزشی کنگره ۶۰» — هر مثلث با سه ضلع مجزا رسم می‌شود */
 private val TRIANGLES: List<TriDef> = listOf(
@@ -327,7 +290,6 @@ private val TRIANGLES: List<TriDef> = listOf(
 
 private const val MAX_HIST = 8
 private const val KEY_FEAT_HIST = "feat_hist"
-private const val KEY_CALM_HIST = "calm_hist"
 private const val KEY_VOICE_FEMALE = "voice_female"
 
 /** تاریخچهٔ موارد نمایش‌داده‌شده — تا هر بار محتوای تازه ببینیم */
@@ -382,9 +344,8 @@ fun LibraryScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("hamrah_lib", Context.MODE_PRIVATE) }
 
-    // — محتوای چرخشی: پیام امروز + آرام‌سازی ذهن —
+    // — محتوای چرخشی: پیام امروز —
     var feat by remember { mutableStateOf(FEATURED.first()) }
-    var calm by remember { mutableStateOf(CALM.first()) }
 
     // — گوینده —
     var voiceFemale by remember { mutableStateOf(prefs.getBoolean(KEY_VOICE_FEMALE, false)) }
@@ -397,6 +358,9 @@ fun LibraryScreen() {
     var progress by remember { mutableFloatStateOf(0f) }
     var spokenText by remember { mutableStateOf("") }
     var spokenSlow by remember { mutableStateOf(false) }
+    var ttsAsked by remember { mutableStateOf(false) }
+    var ttsFailed by remember { mutableStateOf(false) }
+    var showTtsHelp by remember { mutableStateOf(false) }
 
     // — وضعیت‌های رابط —
     var expandedId by remember { mutableStateOf<String?>("feat") } // پیام امروز به‌صورت پیش‌فرض باز است
@@ -412,8 +376,15 @@ fun LibraryScreen() {
     }
 
     fun speak(id: String, text: String, slow: Boolean = false) {
+        if (!ttsAsked) {
+            Toast.makeText(context, "موتور گفتار دارد آماده می‌شود؛ چند لحظهٔ دیگر دوباره بزن", Toast.LENGTH_SHORT).show()
+            return
+        }
         val engine = tts
-        if (engine == null || !ttsReady) return // اگر TTS در دسترس نباشد، دکمه‌ها بی‌صدا کاری نمی‌کنند
+        if (engine == null || ttsFailed) {
+            showTtsHelp = true // موتور گفتار در دسترس نیست — راهنمای نصب باز می‌شود
+            return
+        }
         if (playingId == id) {
             stopSpeak()
             return
@@ -424,9 +395,11 @@ fun LibraryScreen() {
         loadingId = id
         try {
             engine.setSpeechRate(if (slow) 0.85f else 1.0f)
+            selectVoice(engine, voiceFemale)
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         } catch (_: Exception) {
             loadingId = null
+            showTtsHelp = true
         }
     }
 
@@ -445,22 +418,12 @@ fun LibraryScreen() {
         feat = f
     }
 
-    fun rotateCalm() {
-        stopSpeak()
-        val c = pickRotating(CALM, readHist(prefs, KEY_CALM_HIST) + calm.id) { it.id }
-        saveHist(prefs, KEY_CALM_HIST, c.id)
-        calm = c
-    }
-
     // — چرخش هوشمند: با هر ورود به کتابخانه (باز کردن برنامه یا جابجایی بین تب‌ها) —
     // محتوای تازه انتخاب می‌شود؛ تاریخچهٔ SharedPreferences مانع تکرار موارد اخیر می‌شود.
     LaunchedEffect(Unit) {
         val f = pickRotating(FEATURED, readHist(prefs, KEY_FEAT_HIST)) { it.id }
         saveHist(prefs, KEY_FEAT_HIST, f.id)
         feat = f
-        val c = pickRotating(CALM, readHist(prefs, KEY_CALM_HIST)) { it.id }
-        saveHist(prefs, KEY_CALM_HIST, c.id)
-        calm = c
     }
 
     // — ساخت موتور TTS —
@@ -468,7 +431,10 @@ fun LibraryScreen() {
         var engineRef: TextToSpeech? = null
         val engine = TextToSpeech(context.applicationContext) { status ->
             mainHandler.post {
+                ttsAsked = true
                 if (status == TextToSpeech.SUCCESS) {
+                    ttsFailed = false
+                    ttsReady = true
                     engineRef?.let { eng ->
                         try {
                             eng.setLanguage(Locale("fa", "IR"))
@@ -500,6 +466,7 @@ fun LibraryScreen() {
                                             playingId = null
                                             loadingId = null
                                             progress = 0f
+                                            showTtsHelp = true // موتور نتوانست متن را بخواند — راهنمای نصب باز می‌شود
                                         }
                                     }
                                 }
@@ -508,8 +475,10 @@ fun LibraryScreen() {
                         }
                     }
                     ttsReady = true
+                } else {
+                    ttsFailed = true
                 }
-                // اگر راه‌اندازی ناموفق بود، دکمه‌های پخش به‌آرامی کاری نمی‌کنند
+                // اگر راه‌اندازی ناموفق بود، با زدن دکمهٔ پخش راهنمای نصب باز می‌شود
             }
         }
         engineRef = engine
@@ -544,7 +513,11 @@ fun LibraryScreen() {
         }
     }
 
+    val listState = rememberLazyListState()
+    FabScrollEffect(listState)
+
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -584,39 +557,6 @@ fun LibraryScreen() {
             )
         }
 
-        // آرام‌سازی ذهن — متن‌های آرام‌بخش چرخشی با خوانش آهسته
-        item {
-            LibCard(
-                title = "آرام‌سازی ذهن",
-                sub = calm.title,
-                text = calm.text,
-                color = NavTeal,
-                open = expandedId == "calm",
-                playing = playingId == "calm",
-                loading = loadingId == "calm",
-                progress = progress,
-                badge = "خوانش با صدای آرام و آهسته",
-                onToggle = { expandedId = if (expandedId == "calm") null else "calm" },
-                onPlay = { speak("calm", calm.text, slow = true) },
-                onRead = {
-                    reader = ReaderState(
-                        "calm",
-                        "آرام‌سازی ذهن — ${calm.title}",
-                        null,
-                        calm.text,
-                        false,
-                        NavTeal
-                    )
-                },
-                trailing = {
-                    RotatePill(
-                        label = "آرام‌سازی دیگر",
-                        color = NavTeal,
-                        onClick = { rotateCalm() }
-                    )
-                }
-            )
-        }
 
         // انتخاب گوینده — روی همهٔ خوانش‌ها اعمال می‌شود و به‌خاطر سپرده می‌شود
         item {
@@ -656,6 +596,18 @@ fun LibraryScreen() {
                     }
                 }
             }
+        }
+
+        // راهنمای صدا — وقتی موتور گفتار فارسی روی گوشی نصب نیست، کاربر راهنمایی می‌شود
+        item {
+            Text(
+                text = "اگر صدا پخش نشد، یعنی موتور گفتار فارسی (Google Speech Services) روی گوشی نصب نیست؛ دکمهٔ پخش را بزن تا راهنمای نصب باز شود.",
+                fontSize = 10.5.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // کارت‌های کتابخانه — چیدمان عکس ۶: کتاب سمت راست، پخش سمت چپ، شرون پایین
@@ -776,7 +728,7 @@ fun LibraryScreen() {
                             .padding(top = 16.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(50))
-                            .clickable { speak(r.id, r.text, slow = r.id == "calm") }
+                            .clickable { speak(r.id, r.text) }
                     ) {
                         Row(
                             modifier = Modifier
@@ -807,6 +759,39 @@ fun LibraryScreen() {
                 }
             }
         }
+    }
+
+    // — راهنمای نصب موتور گفتار فارسی (وقتی صدایی پخش نمی‌شود) —
+    if (showTtsHelp) {
+        AlertDialog(
+            onDismissRequest = { showTtsHelp = false },
+            title = { Text("موتور گفتار فارسی یافت نشد") },
+            text = {
+                Text("برای پخش صدای خوانش، «Google Speech Services» باید روی گوشی نصب و به‌روز باشد. با دکمهٔ پایین نصب یا به‌روزرسانی کن؛ بعد برنامه را ببند و دوباره باز کن.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTtsHelp = false
+                    try {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.tts"))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    } catch (_: Exception) {
+                        try {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.tts"))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        } catch (_: Exception) {
+                        }
+                    }
+                }) { Text("نصب موتور گفتار") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTtsHelp = false }) { Text("بستن") }
+            }
+        )
     }
 }
 

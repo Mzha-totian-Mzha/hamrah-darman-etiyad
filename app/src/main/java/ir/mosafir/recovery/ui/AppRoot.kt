@@ -272,7 +272,7 @@ fun AppRoot() {
                         }
                     }
                 ) { padding ->
-                    Box(modifier = Modifier.padding(padding)) {
+                    Box(modifier = Modifier.fillMaxSize().padding(padding)) {
                         when (tab) {
                             Tab.HOME -> HomeScreen(
                                 settings = settings,
@@ -298,6 +298,8 @@ fun AppRoot() {
                                 }
                             )
                         }
+                        // فلش سبز «برو پایین» — هر صفحهٔ بلند وضعیت اسکرول خودش را می‌فرستد
+                        FabBus.state?.let { st -> ScrollDownFab(st) }
                     }
                 }
             }
