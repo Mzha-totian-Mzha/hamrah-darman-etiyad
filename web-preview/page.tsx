@@ -1645,7 +1645,20 @@ const EXAM_CARDS: { id: ExamCardId; icon: typeof BookOpen; color: string; title:
   { id: "cat", icon: Layers, color: "#14B8A6", title: "تمرین دسته‌ای", sub: "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی" },
   { id: "quick", icon: Timer, color: "#F59E0B", title: "آزمون سریع", sub: "۵ سؤال — چند دقیقه وقت می‌برد" },
   { id: "review", icon: RotateCcw, color: "#EC4899", title: "مرور اشتباه‌ها", sub: "فقط سؤال‌هایی که غلط جواب دادی" },
-  { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "۲۲۷۰ سؤال با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
+  { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "سؤال‌های کوتاه‌متن با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
+];
+
+/* منابع جدید درخواستی (عکس «منابع آزمون») — هنوز فایل سؤالاتشان به بانک اضافه نشده؛
+   با رسیدن فایل‌ها (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول و دوم و…) سؤال‌هایشان ساخته و همین‌جا فعال می‌شود */
+const PENDING_SOURCES = [
+  "کنگره ۶۰ چیست",
+  "قوانین کنگره ۶۰",
+  "حرمت کنگره ۶۰",
+  "سفر اول",
+  "سفر دوم",
+  "به‌سر بردن راه",
+  "تصاویر کتاب ۶۰ درجه",
+  "معرفی کنگره ۶۰",
 ];
 
 function ExamScreen({ c }: { c: ThemeColors }) {
@@ -1665,6 +1678,8 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   const [flashScores, setFlashScores] = useState<(boolean | null)[]>([]);
   const [quizCats, setQuizCats] = useState<Set<string>>(new Set());
   const [flashCats, setFlashCats] = useState<Set<string>>(new Set());
+  /* فقط سؤال‌های کوتاه‌متن در تمرین تشریحی (پیش‌فرض) — بلندها با گزینهٔ «همه» */
+  const [flashShortOnly, setFlashShortOnly] = useState(true);
   const [noKeyMsg, setNoKeyMsg] = useState(false);
   /* کارت انتخاب‌شدهٔ صفحهٔ شروع (طرح ۵ کارت) + ذخیره‌گاه غلط‌ها */
   const [card, setCard] = useState<null | "term" | "cat" | "quick" | "review" | "written">(null);
@@ -1702,6 +1717,9 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     for (const q of bankQaUsable) if (!set.includes(q.cat)) set.push(q.cat);
     return set;
   }, [bankQaUsable]);
+  /* سؤال‌های کوتاه‌متن (پاسخ ≤ ۱۲۰ حرف) — برای مرور سریع تشریحی */
+  const QA_SHORT_MAX = 120;
+  const shortQaCount = useMemo(() => bankQaUsable.filter((q) => (q.a ?? "").length <= QA_SHORT_MAX).length, [bankQaUsable]);
 
   const startQuiz = (opts?: { len?: number; cats?: Set<string>; review?: boolean }) => {
     if (!bank) return;
@@ -1741,7 +1759,11 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     setPhase("running");
   };
   const startFlash = () => {
-    const list = shuffle(bankQaUsable.filter((q) => flashCats.size === 0 || flashCats.has(q.cat)));
+    const list = shuffle(
+      bankQaUsable.filter(
+        (q) => (flashCats.size === 0 || flashCats.has(q.cat)) && (!flashShortOnly || (q.a ?? "").length <= QA_SHORT_MAX),
+      ),
+    );
     setFlashList(list);
     setFlashScores(new Array(list.length).fill(null));
     setFIndex(0);
@@ -1907,6 +1929,22 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                     <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
                       هیچ دسته‌ای انتخاب نشود = همهٔ منابع
                     </p>
+                    {/* منابع جدید درخواستی — تا رسیدن فایل سؤالات، غیرفعال */}
+                    <p className="mt-2 text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
+                      منابع در راه — با رسیدن فایل سؤالات، فعال می‌شوند:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {PENDING_SOURCES.map((cat) => (
+                        <span
+                          key={cat}
+                          aria-disabled="true"
+                          className="w-[31%] rounded-2xl border border-dashed px-1 py-3.5 text-center text-[11.5px] leading-5"
+                          style={{ background: c.surfaceVariant, borderColor: `${c.outlineVariant}`, color: c.onSurfaceVariant, opacity: 0.75 }}
+                        >
+                          ⏳ {cat}
+                        </span>
+                      ))}
+                    </div>
                     <p className="mt-1 text-center text-[12.5px] font-bold" style={{ color: c.onBg }}>
                       تعداد سؤال:
                     </p>
@@ -1991,8 +2029,34 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                   <SectionCard c={c} title="تمرین تشریحی" accent={cd.color}>
                     <p className="text-[12px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
                       {bank
-                        ? `${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
+                        ? `${faNum(flashShortOnly ? shortQaCount : bankQaUsable.length)} سؤال تشریحی پاسخ‌دار ${flashShortOnly ? "کوتاه‌متن" : ""} از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
                         : "در حال بارگذاری بانک سؤال…"}
+                    </p>
+                    {/* حالت طول پاسخ: کوتاه (پیش‌فرض) یا همهٔ سؤال‌ها */}
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {([
+                        [true, "کوتاه‌متن (پیش‌فرض)"],
+                        [false, "همهٔ سؤال‌ها"],
+                      ] as const).map(([val, label]) => {
+                        const sel = flashShortOnly === val;
+                        return (
+                          <button
+                            key={label}
+                            onClick={() => setFlashShortOnly(val)}
+                            className="rounded-full border px-3 py-1.5 text-[11.5px] font-bold active:scale-[0.98]"
+                            style={{
+                              background: sel ? `${cd.color}14` : c.surface,
+                              borderColor: sel ? cd.color : c.outlineVariant,
+                              color: sel ? cd.color : c.onSurfaceVariant,
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-center text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
+                      در حالت «کوتاه‌متن» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند.
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {flashCatOptions.map((cat) => {
@@ -2516,7 +2580,11 @@ const TRIANGLES: TriangleDef[] = [
 ];
 
 /** رسم مثلث — هر ضلع روی رأس خودش (بالا، پایین‌راست، پایین‌چپ) نوشته می‌شود */
-function TriangleFigure({ t, color }: { t: TriangleDef; color: string }) {
+/* رنگ مثلث‌های آموزشی: مشکی (بنا به درخواست کاربر) */
+const TRIANGLE_INK = "#111111";
+
+function TriangleFigure({ t }: { t: TriangleDef }) {
+  const color = TRIANGLE_INK;
   const chip: React.CSSProperties = {
     position: "absolute",
     maxWidth: 118,
@@ -2545,7 +2613,7 @@ function TriangleFigure({ t, color }: { t: TriangleDef; color: string }) {
 }
 
 /** بخش مثلث‌ها — مثلث واقعی رسم می‌شود، نه متن پشت سر هم */
-function TrianglesSection({ c, color }: { c: ThemeColors; color: string }) {
+function TrianglesSection({ c }: { c: ThemeColors }) {
   return (
     <div className="flex flex-col gap-2.5">
       <p className="text-[11px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
@@ -2553,11 +2621,11 @@ function TrianglesSection({ c, color }: { c: ThemeColors; color: string }) {
       </p>
       <div className="nice-scroll flex max-h-96 flex-col gap-3 overflow-y-auto pl-1">
         {TRIANGLES.map((t) => (
-          <div key={t.n} className="rounded-2xl border p-3" style={{ borderColor: `${color}55` }}>
-            <p className="mb-1.5 text-center text-[12.5px] font-black" style={{ color: color }}>
+          <div key={t.n} className="rounded-2xl border p-3" style={{ borderColor: `${TRIANGLE_INK}55` }}>
+            <p className="mb-1.5 text-center text-[12.5px] font-black" style={{ color: TRIANGLE_INK }}>
               {faNum(t.n)}. {t.title}
             </p>
-            <TriangleFigure t={t} color={color} />
+            <TriangleFigure t={t} />
           </div>
         ))}
       </div>
@@ -2610,7 +2678,7 @@ function ReaderDialog(props: {
         </div>
         {props.triangles ? (
           <div className="mt-3">
-            <TrianglesSection c={props.c} color={props.color} />
+            <TrianglesSection c={props.c} />
           </div>
         ) : (
           <p className="mt-3 text-[12.5px] leading-7" style={{ color: props.c.onBg, textAlign: "justify" }}>
@@ -2720,7 +2788,7 @@ function LibCardView(props: {
       {props.open &&
         (props.triangles ? (
           <div className="mt-2 rounded-xl p-3" style={{ background: c.bg }}>
-            <TrianglesSection c={c} color={props.color} />
+            <TrianglesSection c={c} />
           </div>
         ) : (
           <p className="mt-2 rounded-xl p-3 text-[12px] leading-7" style={{ background: c.bg, color: c.onBg, textAlign: "justify" }}>
@@ -3190,7 +3258,7 @@ function SettingsScreen(props: {
           مسافر — همراه درمان اعتیاد
         </p>
         <p className="text-[11px] leading-6" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
-          نسخه ۱٫۵٫۵ — اپلیکیشن آفلاین و متن‌باز
+          نسخه ۱٫۵٫۶ — اپلیکیشن آفلاین و متن‌باز
           <br />
           پروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰
         </p>

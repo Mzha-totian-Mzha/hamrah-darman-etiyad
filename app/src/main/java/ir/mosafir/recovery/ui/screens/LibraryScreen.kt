@@ -1193,12 +1193,16 @@ private fun TriChip(text: String, color: Color, modifier: Modifier = Modifier) {
     }
 }
 
+/** رنگ مشکی مثلث‌های آموزشی — بنا به درخواست کاربر (قبلاً صورتی/سرخابی بود) */
+private val TriangleInk = Color(0xFF111111)
+
 /**
  * رسم مثلث — هر ضلع روی رأس خودش (بالا، پایین‌راست، پایین‌چپ).
  * داخل یک ناحیهٔ LTR رسم می‌شود تا مختصات راست/چپ مستقل از RTL کل صفحه ثابت بماند.
  */
 @Composable
 private fun TriangleFigure(tri: TriDef, color: Color) {
+    val ink = TriangleInk
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1218,11 +1222,11 @@ private fun TriangleFigure(tri: TriDef, color: Color) {
                     lineTo(leftBase.x, leftBase.y)
                     close()
                 }
-                // پرش ملایم + خط دور مثلث
-                drawPath(path = triangle, color = color.copy(alpha = 0.05f))
+                // پرش ملایم + خط دور مثلث — با رنگ مشکی ثابت
+                drawPath(path = triangle, color = ink.copy(alpha = 0.05f))
                 drawPath(
                     path = triangle,
-                    color = color,
+                    color = ink,
                     style = Stroke(
                         width = 2.5.dp.toPx(),
                         cap = StrokeCap.Round,
@@ -1230,35 +1234,36 @@ private fun TriangleFigure(tri: TriDef, color: Color) {
                     )
                 )
                 // سه دایرهٔ رأس‌ها
-                drawCircle(color = color, radius = 4.5.dp.toPx(), center = apex)
-                drawCircle(color = color, radius = 4.5.dp.toPx(), center = rightBase)
-                drawCircle(color = color, radius = 4.5.dp.toPx(), center = leftBase)
+                drawCircle(color = ink, radius = 4.5.dp.toPx(), center = apex)
+                drawCircle(color = ink, radius = 4.5.dp.toPx(), center = rightBase)
+                drawCircle(color = ink, radius = 4.5.dp.toPx(), center = leftBase)
             }
             // ضلع اول — بالای رأس
             TriChip(
                 text = tri.sides[0],
-                color = color,
+                color = ink,
                 modifier = Modifier.align(Alignment.TopCenter)
             )
             // ضلع دوم — پایینِ راست (در LTR: BottomEnd)
             TriChip(
                 text = tri.sides[1],
-                color = color,
+                color = ink,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
             // ضلع سوم — پایینِ چپ (در LTR: BottomStart)
             TriChip(
                 text = tri.sides[2],
-                color = color,
+                color = ink,
                 modifier = Modifier.align(Alignment.BottomStart)
             )
         }
     }
 }
 
-/** بخش مثلث‌ها — مثلث واقعی رسم می‌شود، نه متن پشت سر هم */
+/** بخش مثلث‌ها — مثلث واقعی رسم می‌شود، نه متن پشت سر هم — رنگ مشکی ثابت */
 @Composable
 private fun TrianglesSection(color: Color) {
+    val ink = TriangleInk
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "هر مثلث سه ضلع دارد؛ اگر یک ضلع ضعیف شود، تعادل کل مثلث به هم می‌ریزد. " +
@@ -1281,20 +1286,20 @@ private fun TrianglesSection(color: Color) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, color.copy(alpha = 0.33f), RoundedCornerShape(16.dp))
+                        .border(1.dp, ink.copy(alpha = 0.33f), RoundedCornerShape(16.dp))
                         .padding(12.dp)
                 ) {
                     Text(
                         text = "${formatNumber(t.n)}. ${t.title}",
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Black,
-                        color = color,
+                        color = ink,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 6.dp)
                     )
-                    TriangleFigure(tri = t, color = color)
+                    TriangleFigure(tri = t, color = ink)
                 }
             }
         }

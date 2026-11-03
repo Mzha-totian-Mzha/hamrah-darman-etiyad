@@ -65,6 +65,24 @@ import kotlin.random.Random
 private val CorrectGreen = Color(0xFF2E7D32)
 private val WrongRed = Color(0xFFC62828)
 
+/**
+ * منابع جدید درخواستی (عکس «منابع آزمون») — هنوز فایل سؤالاتشان به بانک اضافه نشده؛
+ * با رسیدن فایل‌ها (کنگره ۶۰ چیست، قوانین، حرمت، سفر اول و دوم و…) سؤال‌هایشان ساخته و فعال می‌شود.
+ */
+private val PENDING_SOURCES = listOf(
+    "کنگره ۶۰ چیست",
+    "قوانین کنگره ۶۰",
+    "حرمت کنگره ۶۰",
+    "سفر اول",
+    "سفر دوم",
+    "به‌سر بردن راه",
+    "تصاویر کتاب ۶۰ درجه",
+    "معرفی کنگره ۶۰"
+)
+
+/** حداکثر طول پاسخ «سؤال کوتاه‌متن» در تمرین تشریحی */
+private const val QA_SHORT_MAX = 120
+
 /** یک سؤال تستیِ یکپارچه (هستهٔ متد DST یا بانک) */
 private data class QuizItem(
     val question: String,
@@ -371,6 +389,7 @@ private fun ExamStartCard(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun ExamScreen() {
     val context = LocalContext.current
     val bank = remember { QuestionBank.load(context) }
@@ -394,6 +413,8 @@ fun ExamScreen() {
     var reveal by remember { mutableStateOf(false) }
     var known by remember { mutableIntStateOf(0) }
     var unknown by remember { mutableIntStateOf(0) }
+    // فقط سؤال‌های کوتاه‌متن (پیش‌فرض) — بلندها با گزینهٔ «همهٔ سؤال‌ها»
+    var flashShortOnly by remember { mutableStateOf(true) }
 
     // انتخاب دسته‌ها — خالی = همه
     var quizCats by remember { mutableStateOf(setOf<String>()) }
@@ -448,7 +469,7 @@ fun ExamScreen() {
 
     fun startFlash() {
         flashList = bank.qa
-            .filter { flashCats.isEmpty() || it.cat in flashCats }
+            .filter { (flashCats.isEmpty() || it.cat in flashCats) && (!flashShortOnly || it.a.length <= QA_SHORT_MAX) }
             .shuffled(Random(System.nanoTime()))
         fIndex = 0; reveal = false; known = 0; unknown = 0
         phase = "running"
@@ -477,7 +498,7 @@ fun ExamScreen() {
                     ExamCardDef("cat", "تمرین دسته‌ای", "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی", Icons.Outlined.Layers, Color(0xFF14B8A6)),
                     ExamCardDef("quick", "آزمون سریع", "۵ سؤال — چند دقیقه وقت می‌برد", Icons.Outlined.Timer, Color(0xFFF59E0B)),
                     ExamCardDef("review", "مرور اشتباه‌ها", "فقط سؤال‌هایی که غلط جواب دادی", Icons.Outlined.Refresh, Color(0xFFEC4899)),
-                    ExamCardDef("written", "تمرین تشریحی", "۲۲۷۰ سؤال با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین", Icons.Outlined.MenuBook, Color(0xFFE11D48))
+                    ExamCardDef("written", "تمرین تشریحی", "سؤال‌های کوتاه‌متن با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین", Icons.Outlined.MenuBook, Color(0xFFE11D48))
                 )
                 cards.forEach { cd ->
                     item(key = "card-" + cd.id) {
@@ -536,6 +557,40 @@ fun ExamScreen() {
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(top = 6.dp)
                                         )
+                                        // منابع جدید درخواستی — تا رسیدن فایل سؤالات، غیرفعال (چیپ خط‌چین)
+                                        Text(
+                                            text = "منابع در راه — با رسیدن فایل سؤالات، فعال می‌شوند:",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 8.dp)
+                                        )
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 6.dp)
+                                        ) {
+                                            PENDING_SOURCES.forEach { name ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                                    border = BorderStroke(
+                                                        1.dp,
+                                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                                    )
+                                                ) {
+                                                    Text(
+                                                        text = "⏳ $name",
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Text(
                                             text = "تعداد سؤال:",
                                             style = MaterialTheme.typography.labelLarge,
@@ -605,10 +660,48 @@ fun ExamScreen() {
                                 }
                                 "written" -> {
                                     SectionCard(title = "تمرین تشریحی", accent = cd.color) {
+                                        val shortCount = bank.qa.count { it.a.length <= QA_SHORT_MAX }
                                         Text(
-                                            text = formatNumber(bank.qa.size) + " سؤال تشریحی پاسخ‌دار از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی، شرح وظایف و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
+                                            text = (if (flashShortOnly) formatNumber(shortCount) else formatNumber(bank.qa.size)) +
+                                                " سؤال تشریحی پاسخ‌دار" + (if (flashShortOnly) " کوتاه‌متن" else "") +
+                                                " از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
                                             style = MaterialTheme.typography.bodySmall,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+                                        )
+                                        // حالت طول پاسخ: کوتاه (پیش‌فرض) یا همهٔ سؤال‌ها
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp)
+                                        ) {
+                                            listOf(true to "کوتاه‌متن (پیش‌فرض)", false to "همهٔ سؤال‌ها").forEach { (value, label) ->
+                                                val on = flashShortOnly == value
+                                                Surface(
+                                                    shape = RoundedCornerShape(50),
+                                                    color = if (on) cd.color.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+                                                    border = BorderStroke(1.dp, if (on) cd.color else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                                    modifier = Modifier.clickable { flashShortOnly = value }
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        fontSize = 11.5.sp,
+                                                        lineHeight = 16.sp,
+                                                        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (on) cd.color else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = "در حالت «کوتاه‌متن» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Justify,
+                                            modifier = Modifier.padding(top = 6.dp)
                                         )
                                         FilterChips(
                                             options = flashCatOptions,
