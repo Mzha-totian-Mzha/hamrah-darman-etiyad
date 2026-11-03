@@ -3,6 +3,7 @@ package ir.mosafir.recovery.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -350,7 +351,10 @@ fun LibraryScreen() {
     // — گوینده —
     var voiceFemale by remember { mutableStateOf(prefs.getBoolean(KEY_VOICE_FEMALE, false)) }
 
-    // — موتور TTS (فارسی) —
+    // — پخش‌کنندهٔ فایل صوتی ضبط‌شده (MP3 داخل خود برنامه — صدای تضمینی و بدون نیاز به موتور گفتار) —
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    // — موتور TTS (فارسی) — فقط برای متون بدون فایل ضبط‌شده —
     var ttsReady by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var playingId by remember { mutableStateOf<String?>(null) }
@@ -369,6 +373,11 @@ fun LibraryScreen() {
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     fun stopSpeak() {
+        player?.let { p ->
+            try { p.stop() } catch (_: Exception) {}
+            try { p.release() } catch (_: Exception) {}
+        }
+        player = null
         try { tts?.stop() } catch (_: Exception) {}
         playingId = null
         loadingId = null
@@ -376,20 +385,60 @@ fun LibraryScreen() {
     }
 
     fun speak(id: String, text: String, slow: Boolean = false) {
+        if (playingId == id) {
+            stopSpeak()
+            return
+        }
+        stopSpeak()
+
+        /* — اول: فایل صوتی ضبط‌شده (MP3 داخل خود برنامه) —
+           صدای واقعی مرد/زن که در res/raw بسته شده و روی هر گوشی کار می‌کند؛
+           موتور گفتار گوشی فقط برای متون بدون فایل ضبط‌شده استفاده می‌شود. */
+        val base = id.replace("-", "_").lowercase()
+        val resId = context.resources.getIdentifier(
+            if (voiceFemale) "${base}f" else base,
+            "raw",
+            context.packageName
+        )
+        if (resId != 0) {
+            loadingId = id
+            try {
+                val mp = MediaPlayer.create(context, resId)
+                if (mp != null) {
+                    player = mp
+                    spokenText = text
+                    spokenSlow = slow
+                    mp.setOnCompletionListener { done ->
+                        mainHandler.post {
+                            if (player == done) player = null
+                            try { done.release() } catch (_: Exception) {}
+                            if (playingId == id) {
+                                playingId = null
+                                loadingId = null
+                                progress = 0f
+                            }
+                        }
+                    }
+                    mp.start()
+                    playingId = id
+                    loadingId = null
+                    return
+                }
+            } catch (_: Exception) {
+                loadingId = null
+            }
+        }
+
+        /* — دوم: موتور گفتار گوشی (برای متون بدون فایل ضبط‌شده) — */
         if (!ttsAsked) {
             Toast.makeText(context, "موتور گفتار دارد آماده می‌شود؛ چند لحظهٔ دیگر دوباره بزن", Toast.LENGTH_SHORT).show()
             return
         }
         val engine = tts
         if (engine == null || ttsFailed) {
-            showTtsHelp = true // موتور گفتار در دسترس نیست — راهنمای نصب باز می‌شود
+            showTtsHelp = true // نه فایل ضبط‌شده داریم و نه موتور گفتار — راهنمای نصب باز می‌شود
             return
         }
-        if (playingId == id) {
-            stopSpeak()
-            return
-        }
-        stopSpeak()
         spokenText = text
         spokenSlow = slow
         loadingId = id
@@ -489,26 +538,44 @@ fun LibraryScreen() {
                 engine.stop()
                 engine.shutdown()
             } catch (_: Exception) {}
+            player?.let { p ->
+                try { p.stop() } catch (_: Exception) {}
+                try { p.release() } catch (_: Exception) {}
+            }
+            player = null
             tts = null
             playingId = null
             loadingId = null
         }
     }
 
-    // — نوار پیشرفت خوانش: مدت تقریبی = طول متن × ۷۰ میلی‌ثانیه —
+    // — نوار پیشرفت خوانش: برای فایل ضبط‌شده از خود فایل؛ برای موتور گفتار تخمینی از طول متن —
     LaunchedEffect(playingId) {
         if (playingId == null) {
             progress = 0f
         } else {
-            val estimateMs = ((spokenText.length * 70L) * (if (spokenSlow) 1.2 else 1.0)).toLong()
-                .coerceAtLeast(2000L)
-            val start = System.currentTimeMillis()
-            progress = 0f
-            while (playingId != null && isActive) {
-                val fraction = (System.currentTimeMillis() - start).toFloat() / estimateMs.toFloat()
-                progress = fraction.coerceIn(0f, 0.98f)
-                if (fraction >= 1f) break
-                delay(120)
+            val p = player
+            if (p != null) {
+                val dur = (if (p.duration > 0) p.duration else 1).toFloat()
+                while (playingId != null && isActive) {
+                    try {
+                        progress = (p.currentPosition.toFloat() / dur).coerceIn(0f, 0.98f)
+                    } catch (_: Exception) {
+                        break
+                    }
+                    delay(200)
+                }
+            } else {
+                val estimateMs = ((spokenText.length * 70L) * (if (spokenSlow) 1.2 else 1.0)).toLong()
+                    .coerceAtLeast(2000L)
+                val start = System.currentTimeMillis()
+                progress = 0f
+                while (playingId != null && isActive) {
+                    val fraction = (System.currentTimeMillis() - start).toFloat() / estimateMs.toFloat()
+                    progress = fraction.coerceIn(0f, 0.98f)
+                    if (fraction >= 1f) break
+                    delay(120)
+                }
             }
         }
     }
