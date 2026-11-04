@@ -1,6 +1,7 @@
 package ir.mosafir.recovery.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +33,8 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
@@ -50,9 +54,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.Manifest
@@ -78,6 +90,8 @@ import kotlin.random.Random
 /** رنگ‌های بازخورد درست/غلط */
 private val CorrectGreen = Color(0xFF2E7D32)
 private val WrongRed = Color(0xFFC62828)
+private val ChartOrange = Color(0xFFF59E0B)
+private val NeutralGray = Color(0xFF757575)
 
 /** حداکثر طول پاسخ «سؤال کوتاه‌متن» در تمرین تشریحی */
 private const val QA_SHORT_MAX = 120
@@ -505,76 +519,298 @@ private fun ExamStartCard(
 }
 
 /**
- * کارت «روند آزمون‌های تو» — بالای صفحهٔ آزمون:
- * سه کاشی آمار (تعداد جلسات / میانگین / بهترین) + فهرست آخرین جلسه‌ها.
+ * کارت «روند آزمون‌های تو» — بالای صفحهٔ آزمون، دقیقاً مطابق طرح مرجع:
+ * ۴ کارت آمار وسط‌چین (بدون خط بنفش دور کارت‌ها) + نمودار خطی ۶ جلسهٔ اخیر + فهرست آخرین جلسه‌ها.
  */
 @Composable
 private fun ExamTrendCard(results: List<ExamResult>) {
-    SectionCard(title = "روند آزمون‌های تو 📈", accent = HeroPink) {
-        if (results.isEmpty()) {
+    val tileBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Text(
-                text = "هنوز آزمونی ثبت نشده است. اولین آزمون یا تمرینت را بده؛ نتیجهٔ هر جلسه خودکار همین‌جا ذخیره می‌شود تا روند پیشرفتت را قدم‌به‌قدم ببینی.",
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+                text = "روند آزمون‌های تو 📈",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = HeroPink
             )
-        } else {
-            val percents = results.map { if (it.total > 0) it.score * 100 / it.total else 0 }
-            val avg = kotlin.math.round(percents.average()).toInt()
-            val best = percents.max()
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile(label = "تعداد جلسات", value = formatNumber(results.size), modifier = Modifier.weight(1f))
-                StatTile(label = "میانگین درصد", value = formatNumber(avg) + "٪", modifier = Modifier.weight(1f))
-                StatTile(label = "بهترین درصد", value = formatNumber(best) + "٪", modifier = Modifier.weight(1f))
-            }
-            results.take(6).forEach { r ->
-                val pct = if (r.total > 0) r.score * 100 / r.total else 0
-                val col = when {
-                    pct >= 70 -> CorrectGreen
-                    pct >= 50 -> Color(0xFFF59E0B)
-                    else -> WrongRed
-                }
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = resultKindLabel(r.kind) + " · " + PersianDate.formatShort(r.date),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = formatNumber(r.score) + " از " + formatNumber(r.total) + " — " + formatNumber(pct) + "٪",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = col
-                        )
-                    }
-                    LinearProgressIndicator(
-                        progress = { (pct.coerceIn(0, 100)) / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        color = col,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+            if (results.isEmpty()) {
+                Text(
+                    text = "هنوز آزمونی ثبت نشده است. اولین آزمون یا تمرینت را بده؛ نتیجهٔ هر جلسه خودکار همین‌جا ذخیره می‌شود تا روند پیشرفتت را قدم‌به‌قدم ببینی.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                val percents = results.map { if (it.total > 0) it.score * 100 / it.total else 0 }
+                val avg = kotlin.math.round(percents.average()).toInt()
+                val best = percents.max()
+                val last = percents.first()
+                val prev = percents.getOrNull(1)
+
+                // کارت ۱ و ۲: میانگین کل + آخرین نمره — متن‌ها دقیقاً وسط کارت
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TrendTile(
+                        modifier = Modifier.weight(1f),
+                        value = formatNumber(avg) + "٪",
+                        valueColor = ChartOrange,
+                        label = "میانگین کل",
+                        sub = formatNumber(results.size) + " آزمون گرفته‌ای",
+                        subColor = NeutralGray,
+                        bg = tileBg
+                    )
+                    TrendTile(
+                        modifier = Modifier.weight(1f),
+                        value = formatNumber(last) + "٪",
+                        valueColor = CorrectGreen,
+                        label = "آخرین نمره",
+                        sub = when {
+                            prev == null -> "اولین آزمونت"
+                            last > prev -> formatNumber(last - prev) + "٪ بهتر از قبلی"
+                            last < prev -> formatNumber(prev - last) + "٪ ضعیف‌تر از قبلی"
+                            else -> "بدون تغییر نسبت به قبلی"
+                        },
+                        subColor = when {
+                            prev == null -> NeutralGray
+                            last > prev -> CorrectGreen
+                            last < prev -> WrongRed
+                            else -> NeutralGray
+                        },
+                        bg = tileBg
                     )
                 }
-            }
-            if (results.size > 6) {
+
+                // کارت نمودار: درصد موفقیت در ۶ جلسهٔ اخیر (قدیمی‌ترین جلسه سمت راست — RTL)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(tileBg)
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "درصد موفقیت در ۶ جلسه اخیر",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    val lastSix = results.take(6).reversed() // قدیمی‌ترین اول
+                    SuccessChart(values = lastSix.map { if (it.total > 0) it.score * 100 / it.total else 0 })
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp)
+                    ) {
+                        lastSix.forEach { r ->
+                            val jm = PersianDate.fromMillis(r.date)[1]
+                            Text(
+                                text = PersianDate.MONTH_NAMES[jm - 1],
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeutralGray,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                // کارت ۳ و ۴: بهترین درصد + تعداد جلسات
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TrendTile(
+                        modifier = Modifier.weight(1f),
+                        value = formatNumber(best) + "٪",
+                        valueColor = CorrectGreen,
+                        label = "🏆 بهترین درصد",
+                        sub = "بهترین جلسهٔ تو",
+                        subColor = NeutralGray,
+                        bg = CorrectGreen.copy(alpha = 0.08f)
+                    )
+                    TrendTile(
+                        modifier = Modifier.weight(1f),
+                        value = formatNumber(results.size),
+                        valueColor = Color(0xFFAD1457),
+                        label = "🗓 تعداد جلسات",
+                        sub = "همهٔ حالت‌ها ثبت می‌شوند",
+                        subColor = NeutralGray,
+                        bg = Color(0xFFAD1457).copy(alpha = 0.06f)
+                    )
+                }
+
+                // فهرست آخرین جلسه‌ها
+                results.take(6).forEach { r ->
+                    val pct = if (r.total > 0) r.score * 100 / r.total else 0
+                    val col = when {
+                        pct >= 70 -> CorrectGreen
+                        pct >= 50 -> ChartOrange
+                        else -> WrongRed
+                    }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = resultKindLabel(r.kind) + " · " + PersianDate.formatShort(r.date),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatNumber(r.score) + " از " + formatNumber(r.total) + " — " + formatNumber(pct) + "٪",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = col
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { (pct.coerceIn(0, 100)) / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            color = col,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+                }
+                if (results.size > 6) {
+                    Text(
+                        text = "و " + formatNumber(results.size - 6) + " جلسهٔ پیش‌تر در همین روند ثبت شده است.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Text(
-                    text = "و " + formatNumber(results.size - 6) + " جلسهٔ پیش‌تر در همین روند ثبت شده است.",
+                    text = "این روند روی همین گوشی ذخیره می‌شود؛ آزمون ترم، دسته‌ای، سریع، مرور اشتباه‌ها و تمرین تشریحی همه ثبت می‌شوند.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            Text(
-                text = "این روند روی همین گوشی ذخیره می‌شود؛ آزمون ترم، دسته‌ای، سریع، مرور اشتباه‌ها و تمرین تشریحی همه ثبت می‌شوند.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+        }
+    }
+}
+
+/** کاشی آمار روند — متن دقیقاً وسط کارت، بدون حاشیهٔ بنفش */
+@Composable
+private fun TrendTile(
+    modifier: Modifier = Modifier,
+    value: String,
+    valueColor: Color,
+    label: String,
+    sub: String,
+    subColor: Color,
+    bg: Color
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(bg)
+            .padding(vertical = 14.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Black,
+            color = valueColor,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = sub,
+            style = MaterialTheme.typography.labelSmall,
+            color = subColor,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/** نمودار خطی درصد موفقیت — قدیمی‌ترین جلسه سمت راست (RTL) */
+@Composable
+private fun SuccessChart(values: List<Int>) {
+    val measurer = rememberTextMeasurer()
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .padding(horizontal = 18.dp, vertical = 8.dp)
+    ) {
+        if (values.isEmpty()) return@Canvas
+        val n = values.size
+        val padX = 30f
+        val padTop = 34f
+        val padBottom = 10f
+        val chartH = size.height - padTop - padBottom
+        val stepX = if (n == 1) 0f else (size.width - 2 * padX) / (n - 1)
+
+        val pts = values.mapIndexed { i, v ->
+            val x = size.width - padX - i * stepX // RTL: اولین (قدیمی‌ترین) سمت راست
+            val y = padTop + (100 - v) / 100f * chartH
+            Offset(x, y)
+        }
+
+        // ناحیهٔ پرشدهٔ زیر خط
+        val fill = Path()
+        fill.moveTo(pts[0].x, pts[0].y)
+        pts.drop(1).forEach { fill.lineTo(it.x, it.y) }
+        fill.lineTo(pts.last().x, size.height - padBottom)
+        fill.lineTo(pts.first().x, size.height - padBottom)
+        fill.close()
+        drawPath(
+            fill,
+            brush = Brush.verticalGradient(
+                colors = listOf(ChartOrange.copy(alpha = 0.30f), ChartOrange.copy(alpha = 0.02f)),
+                startY = 0f,
+                endY = size.height
+            )
+        )
+
+        // خط اصلی
+        val line = Path()
+        line.moveTo(pts[0].x, pts[0].y)
+        pts.drop(1).forEach { line.lineTo(it.x, it.y) }
+        drawPath(line, color = ChartOrange, style = Stroke(width = 5f))
+
+        // نقطه‌ها و برچسب درصد
+        pts.forEach { p ->
+            drawCircle(color = ChartOrange, radius = 10f, center = p)
+            drawCircle(color = Color.White, radius = 4f, center = p)
+        }
+        pts.forEachIndexed { i, p ->
+            val label = measurer.measure(
+                text = formatNumber(values[i]) + "٪",
+                style = TextStyle(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ChartOrange,
+                    textAlign = TextAlign.Center
+                )
+            )
+            drawText(
+                textLayoutResult = label,
+                topLeft = Offset(p.x - label.size.width / 2f, p.y - label.size.height - 12f)
             )
         }
     }

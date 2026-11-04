@@ -49,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -84,6 +85,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import ir.mosafir.recovery.data.formatNumber
+import ir.mosafir.recovery.data.RemoteContent
 import ir.mosafir.recovery.ui.NoticeCard
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.theme.HeroOrange
@@ -450,6 +452,11 @@ fun LibraryScreen() {
     var expandedId by remember { mutableStateOf<String?>("feat") } // پیام امروز به‌صورت پیش‌فرض باز است
     var reader by remember { mutableStateOf<ReaderState?>(null) }
 
+    // — به‌روزرسانی ابری گیت‌هاب: قطعه‌های تازه از server-content/library.json —
+    var cloudStatus by remember { mutableStateOf<String?>(null) }
+    var showUrlDialog by remember { mutableStateOf(false) }
+    var urlDraft by remember { mutableStateOf("") }
+
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     fun stopSpeak() {
@@ -576,10 +583,33 @@ fun LibraryScreen() {
         cardTexts = next
     }
 
+    // — دریافت قطعه‌های ابری از گیت‌هاب و افزودن به بانک + چرخش تازه —
+    fun startCloudFetch() {
+        cloudStatus = "☁️ در حال بررسی به‌روزرسانی ابری…"
+        RemoteContent.fetchAndApply(context) { ok, received, _ ->
+            if (ok) {
+                val fresh = RemoteContent.cachedPassages(context)
+                val known = passages.map { it.id }.toSet()
+                val added = fresh.filter { p -> p.id !in known }
+                if (added.isNotEmpty()) {
+                    passages = passages + added.map { Passage(it.id, it.src, it.n, it.text) }
+                    rotateAll()
+                }
+                cloudStatus = "☁️ به‌روزرسانی ابری: ${formatNumber(added.size)} قطعهٔ تازه از گیت‌هاب اضافه شد — برای تغییر آدرس، روی این پیام بزن"
+            } else {
+                cloudStatus = if (RemoteContent.cachedPassages(context).isNotEmpty())
+                    "☁️ قطعه‌های ابریِ کش‌شده فعال است (اتصال تازه برقرار نشد) — برای تغییر آدرس، روی این پیام بزن"
+                else
+                    "☁️ منبع ابری در دسترس نبود — برای تنظیم آدرس، روی این پیام بزن"
+            }
+        }
+    }
+
     // — با هر ورود به کتابخانه: بانک پاساژها خوانده و چرخش تازه انجام می‌شود —
     LaunchedEffect(Unit) {
         if (passages.isEmpty()) passages = loadPassages(context)
         rotateAll()
+        if (RemoteContent.isConfigured(context)) startCloudFetch()
     }
 
     // — با بازگشت به برنامه (از پس‌زمینه) هم چرخش تازه انجام می‌شود —
@@ -697,6 +727,49 @@ fun LibraryScreen() {
         }
     }
 
+    // — دیالوگ تنظیم آدرس ابری گیت‌هاب —
+    if (showUrlDialog) {
+        AlertDialog(
+            onDismissRequest = { showUrlDialog = false },
+            title = {
+                Text(
+                    text = "آدرس ابری گیت‌هاب",
+                    fontWeight = FontWeight.Black
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "لینک صفحهٔ ریپو یا آدرس raw فایل library.json را وارد کن:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = urlDraft,
+                        onValueChange = { urlDraft = it },
+                        singleLine = true,
+                        label = { Text("https://raw.githubusercontent.com/...") }
+                    )
+                    Text(
+                        text = "مثال:\nhttps://raw.githubusercontent.com/USERNAME/kongre60-content/main/library.json",
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    RemoteContent.setUrl(context, urlDraft)
+                    showUrlDialog = false
+                    startCloudFetch()
+                }) { Text("ذخیره و دریافت", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUrlDialog = false }) { Text("انصراف") }
+            }
+        )
+    }
+
     val listState = rememberLazyListState()
 
     LazyColumn(
@@ -710,6 +783,26 @@ fun LibraryScreen() {
                 title = "کتابخانه",
                 subtitle = "متن و خوانش کتاب‌ها و متون کنگرهٔ ۶۰ — با صدای مرد و زن",
                 accent = NavAmber
+            )
+        }
+
+        // خط به‌روزرسانی ابری — کلیک = تنظیم آدرس گیت‌هاب
+        item {
+            Text(
+                text = cloudStatus
+                    ?: "☁️ بانک محلی + به‌روزرسانی ابری گیت‌هاب — بزن تا آدرس منبع را ببینی یا عوض کنی",
+                fontSize = 10.5.sp,
+                lineHeight = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable {
+                        urlDraft = RemoteContent.currentUrl(context)
+                        showUrlDialog = true
+                    }
+                    .padding(vertical = 6.dp)
             )
         }
 
