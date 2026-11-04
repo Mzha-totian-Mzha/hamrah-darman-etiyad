@@ -1003,7 +1003,7 @@ fun ExamScreen() {
                     ExamCardDef("cat", "تمرین دسته‌ای", "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی", Icons.Outlined.Layers, Color(0xFF14B8A6)),
                     ExamCardDef("quick", "آزمون سریع", "۵ سؤال — چند دقیقه وقت می‌برد", Icons.Outlined.Timer, Color(0xFFF59E0B)),
                     ExamCardDef("review", "مرور اشتباه‌ها", "فقط سؤال‌هایی که غلط جواب دادی", Icons.Outlined.Refresh, Color(0xFFEC4899)),
-                    ExamCardDef("written", "تمرین تشریحی", "سؤال‌های کوتاه‌متن با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین", Icons.Outlined.MenuBook, Color(0xFFE11D48))
+                    ExamCardDef("written", "تمرین تشریحی", "سؤال‌های متن کوتاه با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین", Icons.Outlined.MenuBook, Color(0xFFE11D48))
                 )
                 cards.forEach { cd ->
                     item(key = "card-" + cd.id) {
@@ -1134,7 +1134,7 @@ fun ExamScreen() {
                                         val shortCount = bank.qa.count { it.a.length <= QA_SHORT_MAX }
                                         Text(
                                             text = (if (flashShortOnly) formatNumber(shortCount) else formatNumber(bank.qa.size)) +
-                                                " سؤال تشریحی پاسخ‌دار" + (if (flashShortOnly) " کوتاه‌متن" else "") +
+                                                " سؤال تشریحی پاسخ‌دار" + (if (flashShortOnly) " متن کوتاه" else "") +
                                                 " از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.",
                                             style = MaterialTheme.typography.bodySmall,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Justify
@@ -1147,7 +1147,7 @@ fun ExamScreen() {
                                                 .fillMaxWidth()
                                                 .padding(top = 8.dp)
                                         ) {
-                                            listOf(true to "کوتاه‌متن (پیش‌فرض)", false to "همهٔ سؤال‌ها").forEach { (value, label) ->
+                                            listOf(true to "متن کوتاه", false to "همهٔ سؤال‌ها").forEach { (value, label) ->
                                                 val on = flashShortOnly == value
                                                 Surface(
                                                     shape = RoundedCornerShape(50),
@@ -1168,7 +1168,7 @@ fun ExamScreen() {
                                             }
                                         }
                                         Text(
-                                            text = "در حالت «کوتاه‌متن» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند.",
+                                            text = "در حالت «متن کوتاه» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Justify,

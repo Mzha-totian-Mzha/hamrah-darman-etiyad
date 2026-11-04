@@ -39,15 +39,12 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -384,6 +381,87 @@ private fun loadPassages(context: Context): List<Passage> = try {
     emptyList()
 }
 
+/* — پاک‌سازی بانک پاساژها برای نمایش در کتابخانه —
+   قطعه‌های خامِ استخراج‌شده از PDF گاهی از وسط جمله شروع می‌شوند یا فهرستِ
+   منابع انگلیسیِ آخر کتاب‌اند؛ اینجا متنِ هر کتاب یک‌بار از سرِ جمله برش
+   می‌خورد تا هیچ قطعه‌ای «نیمه‌شروع» نباشد و هیچ قطعهٔ انگلیسیِ منابع نمایش نیاید. */
+private const val CLEAN_TARGET = 620 // طول هدف هر قطعهٔ تمیز (نویسه)
+private const val CLEAN_MIN = 140    // کمینهٔ طول قطعه — کوتاه‌ترها به قطعهٔ قبلی می‌چسبند
+
+/** آیا متن بیشترِ آن انگلیسی است (فهرست منابع/ارجاعات)؟ */
+private fun isLatinHeavy(t: String): Boolean {
+    var latin = 0
+    var letters = 0
+    for (c in t) {
+        if (c.isLetter()) {
+            letters++
+            if (c in 'A'..'Z' || c in 'a'..'z') latin++
+        }
+    }
+    return letters > 40 && latin * 100 / letters > 35
+}
+
+/** شکستن متن به جمله‌ها — فقط در پایان جمله (. ؟ ! ؛ ! و خط جدید) */
+private fun splitSentences(text: String): List<String> {
+    val out = ArrayList<String>()
+    val sb = StringBuilder()
+    for (c in text) {
+        sb.append(c)
+        if (c == '.' || c == '؟' || c == '?' || c == '!' || c == '؛' || c == '\n') {
+            val s = sb.toString().trim()
+            if (s.length > 2) out.add(s)
+            sb.clear()
+        }
+    }
+    val rest = sb.toString().trim()
+    if (rest.length > 2) out.add(rest)
+    return out
+}
+
+/** چسباندن قطعه‌های خامِ هر کتاب و برشِ دوباره از سرِ جمله + حذف قطعه‌های انگلیسی */
+private fun cleanPassages(raw: List<Passage>): List<Passage> {
+    val bySrc = raw.filter { !isLatinHeavy(it.text) }.groupBy { it.src }
+    val out = ArrayList<Passage>()
+    for ((src, list) in bySrc) {
+        // چسباندن پیوستهٔ قطعه‌های خام به ترتیب، بعد اصلاح فاصله‌های نشانه‌گذاری
+        val full = list.sortedBy { it.n }.joinToString(" ") {
+            it.text.replace("\n", " ").trim()
+        }
+            .replace(" .", ".")
+            .replace(" ،", "،")
+            .replace(" ؛", "؛")
+            .replace(" ؟", "؟")
+            .replace(" !", "!")
+            .replace(" :", ":")
+        var buf = StringBuilder()
+        var idx = 0
+        fun flush() {
+            val t = buf.toString().trim()
+            if (t.isNotEmpty()) {
+                idx++
+                out.add(Passage("clean-${src}-$idx", src, idx, t))
+            }
+            buf = StringBuilder()
+        }
+        for (s in splitSentences(full)) {
+            if (buf.isNotEmpty() && buf.length + s.length + 1 > CLEAN_TARGET) flush()
+            if (buf.isNotEmpty()) buf.append(' ')
+            buf.append(s)
+        }
+        flush()
+        // تکهٔ کوتاه آخر به قطعهٔ قبلی همان منبع می‌چسبد تا هیچ قطعهٔ لرزانی نماند
+        if (out.isNotEmpty() && out.last().src == src) {
+            val lastIdx = out.lastIndex
+            val last = out[lastIdx]
+            if (last.text.length < CLEAN_MIN && lastIdx > 0 && out[lastIdx - 1].src == src) {
+                out[lastIdx - 1] = out[lastIdx - 1].copy(text = out[lastIdx - 1].text + " " + last.text)
+                out.removeAt(lastIdx)
+            }
+        }
+    }
+    return out
+}
+
 /* صدای مرد/زن فقط با فایل‌های ضبط‌شدهٔ خود برنامه (res/raw) پخش می‌شود؛
    موتور گفتار گوشی هرگز صدای انتخابی را عوض نمی‌کند — همان رفتار نسخه‌های سالم */
 private val SRC_FALLBACK_AUDIO: Map<String, String> = mapOf(
@@ -447,11 +525,9 @@ fun LibraryScreen() {
     var expandedId by remember { mutableStateOf<String?>("feat") } // پیام امروز به‌صورت پیش‌فرض باز است
     var reader by remember { mutableStateOf<ReaderState?>(null) }
 
-    // — به‌روزرسانی ابری گیت‌هاب: قطعه‌های تازه از server-content/library.json —
-    var cloudStatus by remember { mutableStateOf<String?>(null) }
-    var showUrlDialog by remember { mutableStateOf(false) }
-    var urlDraft by remember { mutableStateOf("") }
-
+    // — به‌روزرسانی ابری گیت‌هاب: کاملاً بی‌صدا و بی‌واسطه —
+    //   هیچ پیام، خط وضعیت یا پنجرهٔ آدرس نمایش داده نمی‌شود؛
+    //   اگر اینترنت/منبع در دسترس نبود، همین بانک محلی پاک‌سازی‌شده کار می‌کند.
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     fun stopSpeak() {
@@ -573,32 +649,25 @@ fun LibraryScreen() {
         cardTexts = next
     }
 
-    // — دریافت قطعه‌های ابری از گیت‌هاب و افزودن به بانک + چرخش تازه —
+    // — دریافت بی‌صدای قطعه‌های ابری از گیت‌هاب و افزودن به بانک (بدون هیچ پیامی) —
     fun startCloudFetch() {
-        cloudStatus = "☁️ در حال بررسی به‌روزرسانی ابری…"
-        RemoteContent.fetchAndApply(context) { ok, received, _ ->
+        RemoteContent.fetchAndApply(context) { ok, _, _ ->
             if (ok) {
                 val fresh = RemoteContent.cachedPassages(context)
+                    .filter { !isLatinHeavy(it.text) }
                 val known = passages.map { it.id }.toSet()
                 val added = fresh.filter { p -> p.id !in known }
                 if (added.isNotEmpty()) {
                     passages = passages + added.map { Passage(it.id, it.src, it.n, it.text) }
                     rotateAll()
                 }
-                cloudStatus = "☁️ به‌روزرسانی ابری: ${formatNumber(added.size)} قطعهٔ تازه از گیت‌هاب اضافه شد — برای تغییر آدرس، روی این پیام بزن"
-            } else {
-                val reason = RemoteContent.lastError(context).ifBlank { "اتصال برقرار نشد" }
-                cloudStatus = if (RemoteContent.cachedPassages(context).isNotEmpty())
-                    "☁️ قطعه‌های ابریِ کش‌شده فعال است (اتصال تازه برقرار نشد: $reason) — برای تغییر آدرس، روی این پیام بزن"
-                else
-                    "☁️ منبع ابری در دسترس نبود ($reason) — برای تنظیم آدرس، روی این پیام بزن"
             }
         }
     }
 
     // — با هر ورود به کتابخانه: بانک پاساژها خوانده و چرخش تازه انجام می‌شود —
     LaunchedEffect(Unit) {
-        if (passages.isEmpty()) passages = loadPassages(context)
+        if (passages.isEmpty()) passages = cleanPassages(loadPassages(context))
         rotateAll()
         if (RemoteContent.isConfigured(context)) startCloudFetch()
     }
@@ -709,49 +778,6 @@ fun LibraryScreen() {
         }
     }
 
-    // — دیالوگ تنظیم آدرس ابری گیت‌هاب —
-    if (showUrlDialog) {
-        AlertDialog(
-            onDismissRequest = { showUrlDialog = false },
-            title = {
-                Text(
-                    text = "آدرس ابری گیت‌هاب",
-                    fontWeight = FontWeight.Black
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "لینک صفحهٔ ریپو یا آدرس raw فایل library.json را وارد کن:",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedTextField(
-                        value = urlDraft,
-                        onValueChange = { urlDraft = it },
-                        singleLine = true,
-                        label = { Text("https://raw.githubusercontent.com/...") }
-                    )
-                    Text(
-                        text = "مثال:\nhttps://raw.githubusercontent.com/USERNAME/kongre60-content/main/library.json",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    RemoteContent.setUrl(context, urlDraft)
-                    showUrlDialog = false
-                    startCloudFetch()
-                }) { Text("ذخیره و دریافت", fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUrlDialog = false }) { Text("انصراف") }
-            }
-        )
-    }
-
     val listState = rememberLazyListState()
 
     LazyColumn(
@@ -765,26 +791,6 @@ fun LibraryScreen() {
                 title = "کتابخانه",
                 subtitle = "متن و خوانش کتاب‌ها و متون کنگرهٔ ۶۰ — با صدای مرد و زن",
                 accent = NavAmber
-            )
-        }
-
-        // خط به‌روزرسانی ابری — کلیک = تنظیم آدرس گیت‌هاب
-        item {
-            Text(
-                text = cloudStatus
-                    ?: "☁️ بانک محلی + به‌روزرسانی ابری گیت‌هاب — بزن تا آدرس منبع را ببینی یا عوض کنی",
-                fontSize = 10.5.sp,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable {
-                        urlDraft = RemoteContent.currentUrl(context)
-                        showUrlDialog = true
-                    }
-                    .padding(vertical = 6.dp)
             )
         }
 
