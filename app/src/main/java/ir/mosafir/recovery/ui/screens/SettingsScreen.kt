@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,6 +50,7 @@ import ir.mosafir.recovery.data.SubstanceType
 import ir.mosafir.recovery.data.UserSettings
 import ir.mosafir.recovery.data.formatDose
 import ir.mosafir.recovery.data.formatNumber
+import ir.mosafir.recovery.data.toPersianDigits
 import ir.mosafir.recovery.ui.NoticeCard
 import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
@@ -243,18 +243,21 @@ fun SettingsScreen(
         item {
             SectionCard(title = "نوع ماده مصرفی", accent = NavViolet) {
                 // کاشی‌های شماره‌دار ۲تایی در ردیف‌های ۲ستونه — الگوی چیپ‌های «مواد مصرفی» (عکس ۱)
+                // ردیف آخر اگر تک‌کاشی باشد (مثل «سایر»)، دقیقاً وسط صفحه می‌آید
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SubstanceType.entries.chunked(2).forEachIndexed { rowIdx, rowTypes ->
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            rowTypes.forEachIndexed { colIdx, type ->
+                            if (rowTypes.size == 1) {
+                                // تک‌کاشیِ ردیف آخر — هم‌عرض کاشی‌های دیگر (نصف عرض) و وسط‌چین
+                                val type = rowTypes[0]
                                 SubstanceTile(
-                                    index = rowIdx * 2 + colIdx,
+                                    index = rowIdx * 2,
                                     type = type,
                                     selected = settings.substance == type,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(0.5f),
                                     onClick = {
                                         onSaveSettings(
                                             settings.copy(
@@ -264,8 +267,24 @@ fun SettingsScreen(
                                         )
                                     }
                                 )
+                            } else {
+                                rowTypes.forEachIndexed { colIdx, type ->
+                                    SubstanceTile(
+                                        index = rowIdx * 2 + colIdx,
+                                        type = type,
+                                        selected = settings.substance == type,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = {
+                                            onSaveSettings(
+                                                settings.copy(
+                                                    substance = type,
+                                                    consumption = Protocol.defaultConsumption(type)
+                                                )
+                                            )
+                                        }
+                                    )
+                                }
                             }
-                            if (rowTypes.size == 1) Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -433,7 +452,7 @@ fun SettingsScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "نسخه ۱٫۵٫۶ — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
+                    text = "نسخهٔ ${ir.mosafir.recovery.BuildConfig.VERSION_NAME.replace('.', '٫').toPersianDigits()} — اپلیکیشن آفلاین و متن‌باز\nپروتکل بر اساس اصلاحیه DST (۱۳۹۸/۳/۱)، پروتکل ۱۳۸۸ و راهنمای ویرایش ۹۹ کنگره ۶۰",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Justify

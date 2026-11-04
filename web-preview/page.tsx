@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import featuredJson from "../../public/content/featured.json";
+import passagesJson from "../../public/content/passages.json";
 import {
   BookOpen,
   CalendarDays,
@@ -913,6 +914,31 @@ const mcqToQuiz = (m: BankMcq): QuizItem => {
   return { id: m.id, question: m.q, options: texts, correctIndex: safe, explanation, cat: m.cat };
 };
 
+/* — کاشی‌های ردیف‌چین — هر ردیف حداکثر «cols» کاشی و همیشه دقیقاً وسط صفحه —
+   (رفع مشکل کاشی‌های تنها/یادماندهٔ ردیف آخر که گوشهٔ صفحه می‌ماندند) */
+function TileRows<T>(props: { items: T[]; render: (item: T, index: number) => React.ReactNode; cols?: number }) {
+  const { items, render, cols = 3 } = props;
+  const rows: { item: T; index: number }[][] = [];
+  items.forEach((item, index) => {
+    const r = Math.floor(index / cols);
+    if (!rows[r]) rows[r] = [];
+    rows[r].push({ item, index });
+  });
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {rows.map((row, ri) => (
+        <div key={ri} className="flex w-full justify-center gap-2">
+          {row.map(({ item, index }) => (
+            <span key={index} className="contents">
+              {render(item, index)}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ================================ کتابخانه ================================ */
 type LibItem = {
   id: string;
@@ -1401,8 +1427,9 @@ function ProtocolScreen({ c, settings }: { c: ThemeColors; settings: UserSetting
             {faNum(OT_LADDER.length)} پله تا رهایی • هر پله ۲۱ روز
           </p>
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {OT_LADDER.map((step, i) => {
+        <TileRows
+          items={OT_LADDER}
+          render={(step, i) => {
             const isCurrent = hasStart && i === currentLadderIdx;
             const isDone = hasStart && currentLadderIdx >= 0 && i < currentLadderIdx;
             const isSelected = selStep === i;
@@ -1436,8 +1463,8 @@ function ProtocolScreen({ c, settings }: { c: ThemeColors; settings: UserSetting
                 </span>
               </button>
             );
-          })}
-        </div>
+          }}
+        />
         <p className="mt-1.5 text-center text-[10px]" style={{ color: c.onSurfaceVariant }}>
           جدول تیپرینگ OT — پیوست ۱ (۱۵ پله) • با کلیک روی هر پله، توضیح آن بالا نمایش داده می‌شود
         </p>
@@ -1707,11 +1734,19 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   /* کارت انتخاب‌شدهٔ صفحهٔ شروع (طرح ۵ کارت) + ذخیره‌گاه غلط‌ها */
   const [card, setCard] = useState<null | "term" | "cat" | "quick" | "review" | "written">(null);
   const [isReview, setIsReview] = useState(false);
-  const [wrongCount, setWrongCount] = useState(0);
+  /* شمارش سؤال‌های غلط ذخیره‌شده — ExamScreen فقط سمت کلاینت مونت می‌شود؛ پس خواندن localStorage این‌جا امن است
+     (کارت «مرور اشتباه‌ها» بعد از بستن و باز کردن برنامه هم درست شمرده می‌شود) */
+  const [wrongCount, setWrongCount] = useState(() => {
+    try {
+      return loadWrong().length;
+    } catch {
+      return 0;
+    }
+  });
   const [reviewEmpty, setReviewEmpty] = useState(false);
 
   useEffect(() => {
-    fetch("/questionbank.json?v=3", { cache: "no-store" })
+    fetch("/questionbank.json?v=5", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
       .then((d: Bank) => setBank(d))
       .catch(() => setBankError(true));
@@ -2052,8 +2087,9 @@ function ExamScreen({ c }: { c: ThemeColors }) {
 
                 {on && cd.id === "cat" && (
                   <SectionCard c={c} title="انتخاب منبع" accent={cd.color}>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {quizCatOptions.map((cat) => {
+                    <TileRows
+                      items={quizCatOptions}
+                      render={(cat) => {
                         const sel = quizCats.has(cat);
                         return (
                           <button
@@ -2071,8 +2107,8 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                             {cat}
                           </button>
                         );
-                      })}
-                    </div>
+                      }}
+                    />
                     <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
                       هیچ دسته‌ای انتخاب نشود = همهٔ منابع
                     </p>
@@ -2190,8 +2226,9 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                     <p className="text-center text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
                       در حالت «متن کوتاه» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند. سؤال‌های «۶۰ درجه» و «تصاویر کتاب ۶۰ درجه» در هر دو حالت می‌آیند.
                     </p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {flashCatOptions.map((cat) => {
+                    <TileRows
+                      items={flashCatOptions}
+                      render={(cat) => {
                         const sel = flashCats.has(cat);
                         return (
                           <button
@@ -2209,8 +2246,8 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                             {cat}
                           </button>
                         );
-                      })}
-                    </div>
+                      }}
+                    />
                     <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
                       هیچ دسته‌ای انتخاب نشود = همهٔ منابع
                     </p>
@@ -2669,6 +2706,8 @@ type FeatItem = { id: string; title: string; sub: string; text: string };
 
 type ContentJson = { featured?: FeatItem[] };
 const FEATURED_FALLBACK: FeatItem[] = (featuredJson as ContentJson).featured ?? [];
+type PassageBankJson = { passages?: Passage[] };
+const PASSAGES_FALLBACK: Passage[] = (passagesJson as PassageBankJson).passages ?? [];
 
 const FEAT_HIST_KEY = "hamrah_feat_hist";
 
@@ -3015,9 +3054,11 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
   const [playingPos, setPlayingPos] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  /* — بانک محتوای زنده: پیام امروز (۲۴ آموزه) + بانک پاساژهای کل کتاب‌ها — */
+  /* — بانک محتوای زنده: پیام امروز (۲۴ آموزه) + بانک پاساژهای کل کتاب‌ها —
+     بانک پاساژها به‌صورت استاتیک هم همراه برنامه است (PASSAGES_FALLBACK) تا چرخش متن‌ها
+     حتی بدون شبکه/اگر fetch شکست خورد، همیشه کار کند (رفع مشکل ثابت‌ماندن متن کارت‌ها) */
   const [featPool, setFeatPool] = useState<FeatItem[]>(FEATURED_FALLBACK);
-  const [passPool, setPassPool] = useState<Passage[]>([]);
+  const [passPool, setPassPool] = useState<Passage[]>(PASSAGES_FALLBACK);
   const [feat, setFeat] = useState<FeatItem | null>(null);
   /* متن جاری هر کارت کتاب — با هر ورود از بانک همان کتاب چرخش می‌شود */
   const [cardTexts, setCardTexts] = useState<Record<string, string>>({});
@@ -3035,14 +3076,16 @@ function LibraryScreen({ c }: { c: ThemeColors }) {
       .catch(() => {});
   }, []);
 
-  /* بانک پاساژها: قطعه‌های خواندنی همهٔ کتاب‌ها (اندازهٔ بانک ≈ ۱٫۴MB — با کش مرورگر) */
+  /* بانک پاساژها: قطعه‌های خواندنی همهٔ کتاب‌ها — نسخهٔ زنده از سرور؛ در شکست، بانک همراه برنامه */
   useEffect(() => {
-    fetch("/content/passages.json?v=1")
+    fetch("/content/passages.json?v=2", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { passages?: Passage[] } | null) => {
         if (d?.passages?.length) setPassPool(d.passages);
       })
-      .catch(() => {});
+      .catch(() => {
+        /* بانک محلی (PASSAGES_FALLBACK) سر جایش می‌ماند */
+      });
   }, []);
 
   /* هوشمند: با بازگشت به برنامه (وقتی تب در پس‌زمینه بود) هم چرخش تازه انجام شود */
@@ -3317,9 +3360,10 @@ function SettingsScreen(props: {
       </SectionCard>
 
       <SectionCard c={c} title="نوع ماده مصرفی" accent={NAV_COLORS.settings}>
-        {/* کاشی‌های شماره‌دار ۲تایی در ۴ ردیف — الگو: چیپ‌های «مواد مصرفی» (عکس ۱):
-            نقطهٔ رنگی شماره‌دار + برچسب یک‌خطی، همهٔ کاشی‌ها هم‌اندازه */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* کاشی‌های شماره‌دار ۲تایی در ردیف‌های ۲ستونه — الگو: چیپ‌های «مواد مصرفی» (عکس ۱):
+            نقطهٔ رنگی شماره‌دار + برچسب یک‌خطی، همهٔ کاشی‌ها هم‌اندازه؛
+            ردیف آخر اگر تک‌کاشی باشد (مثل «سایر»)، دقیقاً وسط صفحه می‌آید */}
+        <div className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2 [&>*:last-child:nth-child(odd)]:w-[calc(50%-4px)] [&>*:last-child:nth-child(odd)]:justify-self-center">
           {SUBSTANCES.map((s, i) => {
             const on = settings.substance === s.id;
             const dot = SUBSTANCE_DOTS[s.id] ?? "#9E9E9E";

@@ -64,11 +64,13 @@ import ir.mosafir.recovery.data.BankMcq
 import ir.mosafir.recovery.data.BankQa
 import ir.mosafir.recovery.data.NightExamScheduler
 import ir.mosafir.recovery.data.NightExamStore
+import ir.mosafir.recovery.data.PersianDate
 import ir.mosafir.recovery.data.QuestionBank
 import ir.mosafir.recovery.data.formatNumber
 import ir.mosafir.recovery.ui.OneLineText
 import ir.mosafir.recovery.ui.ScreenHeader
 import ir.mosafir.recovery.ui.SectionCard
+import ir.mosafir.recovery.ui.StatTile
 import ir.mosafir.recovery.ui.WeCanBadge
 import ir.mosafir.recovery.ui.theme.HeroPink
 import kotlin.random.Random
@@ -320,6 +322,68 @@ private object RecentStore {
 }
 
 /**
+ * «روند آزمون‌ها» — نتیجهٔ هر آزمون/تمرینِ کامل‌شده ذخیره می‌شود تا
+ * روند پیشرفت مسافر در بالای صفحهٔ آزمون دیده باشد.
+ */
+private data class ExamResult(
+    val kind: String,   // term | cat | quick | review | written
+    val score: Int,     // تستی: تعداد درست — تشریحی: «بلد بودم»
+    val total: Int,     // کل سؤال‌های همان جلسه
+    val date: Long
+)
+
+private object ExamResultStore {
+    private const val MAX = 60
+
+    private fun prefs(ctx: android.content.Context) =
+        ctx.getSharedPreferences("mosafir_exam_results", android.content.Context.MODE_PRIVATE)
+
+    fun load(ctx: android.content.Context): List<ExamResult> {
+        return try {
+            val arr = org.json.JSONArray(prefs(ctx).getString("results", "[]") ?: "[]")
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                ExamResult(
+                    kind = o.optString("kind", "cat"),
+                    score = o.optInt("score"),
+                    total = o.optInt("total"),
+                    date = o.optLong("date")
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun add(ctx: android.content.Context, r: ExamResult) {
+        if (r.total <= 0) return
+        try {
+            val merged = (listOf(r) + load(ctx)).take(MAX)
+            val arr = org.json.JSONArray()
+            merged.forEach { x ->
+                val o = org.json.JSONObject()
+                o.put("kind", x.kind)
+                o.put("score", x.score)
+                o.put("total", x.total)
+                o.put("date", x.date)
+                arr.put(o)
+            }
+            prefs(ctx).edit().putString("results", arr.toString()).apply()
+        } catch (e: Exception) {
+            /* بی‌صدا */
+        }
+    }
+}
+
+private fun resultKindLabel(kind: String): String = when (kind) {
+    "term" -> "آزمون ترم"
+    "quick" -> "آزمون سریع"
+    "review" -> "مرور اشتباه‌ها"
+    "written" -> "تمرین تشریحی"
+    else -> "تمرین دسته‌ای"
+}
+
+/**
  * چینش سشن جدید: اول سؤال‌های تازه (که در سشن‌های اخیر نیامده‌اند)، بعد سؤال‌های دیده‌شده —
  * هر گروه خودش شافل می‌شود تا ترتیب همیشه عوض شود.
  */
@@ -440,6 +504,82 @@ private fun ExamStartCard(
     }
 }
 
+/**
+ * کارت «روند آزمون‌های تو» — بالای صفحهٔ آزمون:
+ * سه کاشی آمار (تعداد جلسات / میانگین / بهترین) + فهرست آخرین جلسه‌ها.
+ */
+@Composable
+private fun ExamTrendCard(results: List<ExamResult>) {
+    SectionCard(title = "روند آزمون‌های تو 📈", accent = HeroPink) {
+        if (results.isEmpty()) {
+            Text(
+                text = "هنوز آزمونی ثبت نشده است. اولین آزمون یا تمرینت را بده؛ نتیجهٔ هر جلسه خودکار همین‌جا ذخیره می‌شود تا روند پیشرفتت را قدم‌به‌قدم ببینی.",
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+            )
+        } else {
+            val percents = results.map { if (it.total > 0) it.score * 100 / it.total else 0 }
+            val avg = kotlin.math.round(percents.average()).toInt()
+            val best = percents.max()
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatTile(label = "تعداد جلسات", value = formatNumber(results.size), modifier = Modifier.weight(1f))
+                StatTile(label = "میانگین درصد", value = formatNumber(avg) + "٪", modifier = Modifier.weight(1f))
+                StatTile(label = "بهترین درصد", value = formatNumber(best) + "٪", modifier = Modifier.weight(1f))
+            }
+            results.take(6).forEach { r ->
+                val pct = if (r.total > 0) r.score * 100 / r.total else 0
+                val col = when {
+                    pct >= 70 -> CorrectGreen
+                    pct >= 50 -> Color(0xFFF59E0B)
+                    else -> WrongRed
+                }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = resultKindLabel(r.kind) + " · " + PersianDate.formatShort(r.date),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = formatNumber(r.score) + " از " + formatNumber(r.total) + " — " + formatNumber(pct) + "٪",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = col
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { (pct.coerceIn(0, 100)) / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        color = col,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+            }
+            if (results.size > 6) {
+                Text(
+                    text = "و " + formatNumber(results.size - 6) + " جلسهٔ پیش‌تر در همین روند ثبت شده است.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Text(
+                text = "این روند روی همین گوشی ذخیره می‌شود؛ آزمون ترم، دسته‌ای، سریع، مرور اشتباه‌ها و تمرین تشریحی همه ثبت می‌شوند.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+            )
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 fun ExamScreen() {
@@ -478,6 +618,10 @@ fun ExamScreen() {
     var reviewEmpty by remember { mutableStateOf(false) }
     var wrongCount by remember { mutableStateOf(WrongStore.load(context).size) }
 
+    // ————— روند آزمون‌ها: نوع آخرین سشن + تاریخچهٔ نتایج
+    var quizKind by remember { mutableStateOf("cat") }
+    var examResults by remember { mutableStateOf(ExamResultStore.load(context)) }
+
     val quizCatOptions = remember { listOf(CORE_CAT) + bank.mcqCats }
     val flashCatOptions = remember { bank.qaCats }
 
@@ -490,12 +634,19 @@ fun ExamScreen() {
             }
             reviewEmpty = false
             isReview = true
+            quizKind = "review"
             quizList = stored.shuffled(Random(System.nanoTime()))
             qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
             phase = "running"
             return
         }
         isReview = false
+        quizKind = when (startCard) {
+            "term" -> "term"
+            "quick" -> "quick"
+            "review" -> quizKind // «آزمون دوباره» بعد از مرور — همان نوع سشن قبلی می‌ماند
+            else -> "cat"
+        }
         val core = if (cats.isEmpty() || CORE_CAT in cats) CORE_DST else emptyList()
         val fromBank = bank.mcq
             .filter { cats.isEmpty() || it.cat in cats }
@@ -508,6 +659,28 @@ fun ExamScreen() {
         quizList = picked
         qIndex = 0; chosen = null; answered = false; score = 0; history = emptyList()
         phase = "running"
+    }
+
+    /** ثبت نتیجهٔ آزمون تستی در «روند آزمون‌ها» — کل سشن یا تا جای که پاسخ داده شده */
+    fun saveQuizResult(partialTotal: Int? = null) {
+        val total = partialTotal ?: quizList.size
+        if (total <= 0) return
+        ExamResultStore.add(
+            context,
+            ExamResult(kind = if (isReview) "review" else quizKind, score = score, total = total, date = System.currentTimeMillis())
+        )
+        examResults = ExamResultStore.load(context)
+    }
+
+    /** ثبت نتیجهٔ تمرین تشریحی در «روند آزمون‌ها» */
+    fun saveFlashResult() {
+        val done = known + unknown
+        if (done <= 0) return
+        ExamResultStore.add(
+            context,
+            ExamResult(kind = "written", score = known, total = done, date = System.currentTimeMillis())
+        )
+        examResults = ExamResultStore.load(context)
     }
 
     /** ذخیرهٔ سؤال‌های غلط — در حالت مرور، فقط غلط‌های دوباره باقی می‌مانند */
@@ -541,11 +714,12 @@ fun ExamScreen() {
     var nightDoneToday by remember { mutableStateOf(NightExamStore.isDoneToday(context)) }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    /* با هر ورود به تب آزمون، زنگ شبانه دوباره تنظیم می‌شود (ضدِ ازدست‌رفتن بعد از ری‌استارت) */
+    /* با هر ورود به تب آزمون، زنگ شبانه دوباره تنظیم و روند آزمون‌ها تازه می‌شود */
     LaunchedEffect(Unit) {
         NightExamScheduler.ensureChannel(context)
         NightExamScheduler.scheduleNext(context)
         nightDoneToday = NightExamStore.isDoneToday(context)
+        examResults = ExamResultStore.load(context)
     }
 
     fun setNightExam(enabled: Boolean, hour: Int = nightHour, minute: Int = nightMinute) {
@@ -584,6 +758,10 @@ fun ExamScreen() {
 
         when (phase) {
             "start" -> {
+                // روند آزمون‌ها — بالای همهٔ کارت‌ها (همان‌جا که قرار بود باشد)
+                item(key = "trend") {
+                    ExamTrendCard(examResults)
+                }
                 val cards = listOf(
                     ExamCardDef("term", "آزمون ترم", "۱۰۰ سؤال · ۴۵ دقیقه — استاندارد جلسهٔ ترم", Icons.Outlined.Assignment, Color(0xFFF97316)),
                     ExamCardDef("cat", "تمرین دسته‌ای", "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی", Icons.Outlined.Layers, Color(0xFF14B8A6)),
@@ -985,6 +1163,7 @@ fun ExamScreen() {
                                             answered = false
                                         } else {
                                             recordWrongs()
+                                            saveQuizResult() // ثبت در «روند آزمون‌ها»
                                             markExamDoneToday()
                                             phase = "done"
                                         }
@@ -1027,6 +1206,8 @@ fun ExamScreen() {
                     OutlinedButton(
                         onClick = {
                             recordWrongs()
+                            // حتی خروجِ وسط کار هم ثبت می‌شود — تا جایی که پاسخ داده شده
+                            if (history.isNotEmpty()) saveQuizResult(partialTotal = history.size)
                             phase = "start"
                             startCard = null
                         },
@@ -1115,6 +1296,7 @@ fun ExamScreen() {
                                             if (fIndex + 1 < flashList.size) {
                                                 fIndex += 1; reveal = false
                                             } else {
+                                                saveFlashResult() // ثبت در «روند آزمون‌ها»
                                                 markExamDoneToday()
                                                 phase = "done"
                                             }
@@ -1127,6 +1309,7 @@ fun ExamScreen() {
                                             if (fIndex + 1 < flashList.size) {
                                                 fIndex += 1; reveal = false
                                             } else {
+                                                saveFlashResult() // ثبت در «روند آزمون‌ها»
                                                 markExamDoneToday()
                                                 phase = "done"
                                             }
@@ -1159,6 +1342,7 @@ fun ExamScreen() {
                             )
                             OutlinedButton(
                                 onClick = {
+                                    saveFlashResult() // ثبت در «روند آزمون‌ها»
                                     markExamDoneToday()
                                     phase = "done"
                                 }
@@ -1198,6 +1382,14 @@ fun ExamScreen() {
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Justify
                             )
                         }
+                        Text(
+                            text = "✓ این نتیجه در «روند آزمون‌های تو» بالای صفحه ثبت شد",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = CorrectGreen,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
@@ -1254,6 +1446,14 @@ fun ExamScreen() {
                             text = "سؤال‌های «بلد نبودم» را در جلسهٔ بعدی تمرین، اول مرور کن؛ تکرار، کلید یادگیری است. ما می‌توانیم ✋",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Justify
+                        )
+                        Text(
+                            text = "✓ این نتیجه در «روند آزمون‌های تو» بالای صفحه ثبت شد",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = CorrectGreen,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),

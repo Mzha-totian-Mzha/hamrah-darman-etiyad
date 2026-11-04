@@ -12,8 +12,8 @@ android {
         applicationId = "ir.mosafir.recovery"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "1.5.8"
+        versionCode = 24
+        versionName = "1.5.9"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -55,6 +55,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -62,6 +63,11 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+/* این پروژه فقط کاتلین است (بدون سورس جاوا) — کامپایل جاوا روی ماشین‌های بدون jlink غیرفعال می‌شود */
+tasks.withType<JavaCompile>().configureEach {
+    enabled = false
 }
 
 dependencies {
