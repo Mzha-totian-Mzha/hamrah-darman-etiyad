@@ -1,15 +1,12 @@
 package ir.mosafir.recovery.ui.screens
 
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -363,7 +360,7 @@ private data class Passage(val id: String, val src: String, val n: Int, val text
 private val LIB_SRC: Map<String, List<String>> = mapOf(
     "lib-01" to listOf("چهارده مقاله"),
     "lib-02" to listOf("کنگره ۶۰ چیست؟"),
-    "lib-03" to listOf("راهنمای تازه‌واردین"),
+    "lib-03" to listOf("راهنمای تازه‌واردین", "راهنما و راهنمایی"),
     "lib-04" to listOf("چهارده وادی عشق"),
     "lib-05" to listOf("جهان‌بینی ۱", "جهان‌بینی ۲"),
     "dst" to listOf("پروتکل DST", "اصلاحیه پروتکل DST"),
@@ -387,24 +384,25 @@ private fun loadPassages(context: Context): List<Passage> = try {
     emptyList()
 }
 
-/** انتخاب صدای فارسی مرد/زن — اگر موتور TTS صدای مناسب نداشت، پیش‌فرض می‌ماند (بی‌صدا) */
-private fun selectVoice(engine: TextToSpeech, female: Boolean) {
-    try {
-        val voices = engine.voices ?: return
-        val faVoices = voices.filter { v ->
-            v.locale?.language?.startsWith("fa") == true || v.name.contains("fa", ignoreCase = true)
-        }
-        if (faVoices.isEmpty()) return
-        val chosen = if (female) {
-            faVoices.firstOrNull { it.name.contains("Dilara", ignoreCase = true) || it.name.contains("female", ignoreCase = true) }
-        } else {
-            faVoices.firstOrNull { it.name.contains("Farid", ignoreCase = true) || (it.name.contains("male", ignoreCase = true) && !it.name.contains("female", ignoreCase = true)) }
-        } ?: return
-        engine.setVoice(chosen)
-    } catch (_: Exception) {
-        // بی‌صدا — اگر انتخاب صدا ممکن نشد، صدای پیش‌فرض استفاده می‌شود
-    }
-}
+/* صدای مرد/زن فقط با فایل‌های ضبط‌شدهٔ خود برنامه (res/raw) پخش می‌شود؛
+   موتور گفتار گوشی هرگز صدای انتخابی را عوض نمی‌کند — همان رفتار نسخه‌های سالم */
+private val SRC_FALLBACK_AUDIO: Map<String, String> = mapOf(
+    "چهارده مقاله" to "lib_01",
+    "کنگره ۶۰ چیست؟" to "lib_02",
+    "راهنمای تازه‌واردین" to "lib_03",
+    "راهنما و راهنمایی" to "lib_03",
+    "چهارده وادی عشق" to "lib_04",
+    "جهان‌بینی ۱" to "lib_05",
+    "جهان‌بینی ۲" to "lib_05",
+    "پروتکل DST" to "dst",
+    "اصلاحیه پروتکل DST" to "dst",
+    "شرح وظایف" to "vazayef",
+    "قوانین کنگره ۶۰" to "ghavanin",
+    "کتاب ۶۰ درجه" to "shast",
+    "بهترین راه" to "behtarin",
+    "مثلث‌های آموزشی" to "mosalas",
+    "مصرف‌کننده کیست؟" to "masraf"
+)
 
 /* ================================ کتابخانهٔ صوتی ================================ */
 
@@ -416,7 +414,8 @@ private data class ReaderState(
     val text: String,
     val triangles: Boolean,
     val color: Color,
-    val audioId: String? = null
+    val audioId: String? = null,
+    val fallbackAudioId: String? = null
 )
 
 @Composable
@@ -437,16 +436,12 @@ fun LibraryScreen() {
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
 
     // — موتور TTS (فارسی) — فقط برای متون بدون فایل ضبط‌شده —
-    var ttsReady by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var playingId by remember { mutableStateOf<String?>(null) }
     var loadingId by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableFloatStateOf(0f) }
     var spokenText by remember { mutableStateOf("") }
     var spokenSlow by remember { mutableStateOf(false) }
-    var ttsAsked by remember { mutableStateOf(false) }
-    var ttsFailed by remember { mutableStateOf(false) }
-    var showTtsHelp by remember { mutableStateOf(false) }
 
     // — وضعیت‌های رابط —
     var expandedId by remember { mutableStateOf<String?>("feat") } // پیام امروز به‌صورت پیش‌فرض باز است
@@ -471,7 +466,7 @@ fun LibraryScreen() {
         progress = 0f
     }
 
-    fun speak(id: String, text: String, slow: Boolean = false, audioId: String = id) {
+    fun speak(id: String, text: String, slow: Boolean = false, audioId: String = id, fallbackAudioId: String? = null) {
         if (playingId == id) {
             stopSpeak()
             return
@@ -479,14 +474,19 @@ fun LibraryScreen() {
         stopSpeak()
 
         /* — اول: فایل صوتی ضبط‌شده (MP3 داخل خود برنامه) —
-           صدای واقعی مرد/زن که در res/raw بسته شده و روی هر گوشی کار می‌کند؛
-           موتور گفتار گوشی فقط برای متون بدون فایل ضبط‌شده استفاده می‌شود. */
-        val base = audioId.replace("-", "_").lowercase()
-        val resId = context.resources.getIdentifier(
-            if (voiceFemale) "${base}f" else base,
-            "raw",
-            context.packageName
-        )
+           صدای واقعی مرد/زن که در res/raw بسته شده و روی هر گوشی کار می‌کند.
+           اگر برای همین متن فایل جدا نداشتیم (قطعهٔ چرخشی)، فایل ضبط‌شدهٔ خودِ کارت/کتاب
+           پخش می‌شود — دقیقاً مثل نسخه‌های قبلی که همیشه صدا داشتند. */
+        fun rawIdOf(rawName: String?): Int =
+            if (rawName.isNullOrBlank()) 0
+            else context.resources.getIdentifier(
+                if (voiceFemale) "${rawName}f" else rawName,
+                "raw",
+                context.packageName
+            )
+        val resId = rawIdOf(audioId.replace("-", "_").lowercase())
+            .takeIf { it != 0 }
+            ?: rawIdOf(fallbackAudioId?.replace("-", "_")?.lowercase())
         if (resId != 0) {
             loadingId = id
             try {
@@ -516,26 +516,17 @@ fun LibraryScreen() {
             }
         }
 
-        /* — دوم: موتور گفتار گوشی (برای متون بدون فایل ضبط‌شده) — */
-        if (!ttsAsked) {
-            Toast.makeText(context, "موتور گفتار دارد آماده می‌شود؛ چند لحظهٔ دیگر دوباره بزن", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val engine = tts
-        if (engine == null || ttsFailed) {
-            showTtsHelp = true // نه فایل ضبط‌شده داریم و نه موتور گفتار — راهنمای نصب باز می‌شود
-            return
-        }
+        /* — دوم: موتور گفتار گوشی — فقط برای متون بدون فایل ضبط‌شده؛
+           بدون هیچ پیام، توست یا پنجره‌ای: اگر موتور نبود، ساکت رد می‌شود */
+        val engine = tts ?: return
         spokenText = text
         spokenSlow = slow
         loadingId = id
         try {
             engine.setSpeechRate(if (slow) 0.85f else 1.0f)
-            selectVoice(engine, voiceFemale)
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         } catch (_: Exception) {
             loadingId = null
-            showTtsHelp = true
         }
     }
 
@@ -544,7 +535,6 @@ fun LibraryScreen() {
         stopSpeak()
         voiceFemale = female
         prefs.edit().putBoolean(KEY_VOICE_FEMALE, female).apply()
-        tts?.let { selectVoice(it, female) }
     }
 
     // — چرخش هوشمند: پیام بالای کتابخانه از کل بانک (آموزه‌ها + قطعه‌های همهٔ کتاب‌ها با برچسب منبع)
@@ -597,10 +587,11 @@ fun LibraryScreen() {
                 }
                 cloudStatus = "☁️ به‌روزرسانی ابری: ${formatNumber(added.size)} قطعهٔ تازه از گیت‌هاب اضافه شد — برای تغییر آدرس، روی این پیام بزن"
             } else {
+                val reason = RemoteContent.lastError(context).ifBlank { "اتصال برقرار نشد" }
                 cloudStatus = if (RemoteContent.cachedPassages(context).isNotEmpty())
-                    "☁️ قطعه‌های ابریِ کش‌شده فعال است (اتصال تازه برقرار نشد) — برای تغییر آدرس، روی این پیام بزن"
+                    "☁️ قطعه‌های ابریِ کش‌شده فعال است (اتصال تازه برقرار نشد: $reason) — برای تغییر آدرس، روی این پیام بزن"
                 else
-                    "☁️ منبع ابری در دسترس نبود — برای تنظیم آدرس، روی این پیام بزن"
+                    "☁️ منبع ابری در دسترس نبود ($reason) — برای تنظیم آدرس، روی این پیام بزن"
             }
         }
     }
@@ -627,14 +618,10 @@ fun LibraryScreen() {
         var engineRef: TextToSpeech? = null
         val engine = TextToSpeech(context.applicationContext) { status ->
             mainHandler.post {
-                ttsAsked = true
                 if (status == TextToSpeech.SUCCESS) {
-                    ttsFailed = false
-                    ttsReady = true
                     engineRef?.let { eng ->
                         try {
                             eng.setLanguage(Locale("fa", "IR"))
-                            selectVoice(eng, voiceFemale)
                             eng.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                                 override fun onStart(utteranceId: String?) {
                                     mainHandler.post {
@@ -662,7 +649,6 @@ fun LibraryScreen() {
                                             playingId = null
                                             loadingId = null
                                             progress = 0f
-                                            showTtsHelp = true // موتور نتوانست متن را بخواند — راهنمای نصب باز می‌شود
                                         }
                                     }
                                 }
@@ -670,11 +656,7 @@ fun LibraryScreen() {
                         } catch (_: Exception) {
                         }
                     }
-                    ttsReady = true
-                } else {
-                    ttsFailed = true
                 }
-                // اگر راه‌اندازی ناموفق بود، با زدن دکمهٔ پخش راهنمای نصب باز می‌شود
             }
         }
         engineRef = engine
@@ -819,9 +801,9 @@ fun LibraryScreen() {
                 progress = progress,
                 badge = "صوت = خوانش همین متن",
                 onToggle = { expandedId = if (expandedId == "feat") null else "feat" },
-                onPlay = { speak("feat", feat.text, audioId = feat.id) },
+                onPlay = { speak("feat", feat.text, audioId = feat.id, fallbackAudioId = SRC_FALLBACK_AUDIO[feat.title]) },
                 onRead = {
-                    reader = ReaderState("feat", feat.title, feat.sub, feat.text, false, NavAmber, feat.id)
+                    reader = ReaderState("feat", feat.title, feat.sub, feat.text, false, NavAmber, feat.id, SRC_FALLBACK_AUDIO[feat.title])
                 }
             )
         }
@@ -867,18 +849,6 @@ fun LibraryScreen() {
             }
         }
 
-        // راهنمای صدا — وقتی موتور گفتار فارسی روی گوشی نصب نیست، کاربر راهنمایی می‌شود
-        item {
-            Text(
-                text = "اگر صدا پخش نشد، یعنی موتور گفتار فارسی (Google Speech Services) روی گوشی نصب نیست؛ دکمهٔ پخش را بزن تا راهنمای نصب باز شود.",
-                fontSize = 10.5.sp,
-                lineHeight = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
         // کارت‌های کتابخانه — چیدمان عکس ۶: کتاب سمت راست، پخش سمت چپ، شرون پایین
         items(LIB_ITEMS.size) { index ->
             val item = LIB_ITEMS[index]
@@ -897,7 +867,7 @@ fun LibraryScreen() {
                 badge = "صوت = خوانش همین متن",
                 triangles = item.id == "mosalas",
                 onToggle = { expandedId = if (expandedId == item.id) null else item.id },
-                onPlay = { speak(item.id, txt, audioId = audioId) },
+                onPlay = { speak(item.id, txt, audioId = audioId, fallbackAudioId = item.id) },
                 onRead = {
                     reader = ReaderState(
                         item.id,
@@ -906,7 +876,8 @@ fun LibraryScreen() {
                         txt,
                         item.id == "mosalas",
                         item.color,
-                        audioId
+                        audioId,
+                        item.id
                     )
                 }
             )
@@ -1001,7 +972,7 @@ fun LibraryScreen() {
                             .padding(top = 16.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(50))
-                            .clickable { speak(r.id, r.text, audioId = r.audioId ?: r.id) }
+                            .clickable { speak(r.id, r.text, audioId = r.audioId ?: r.id, fallbackAudioId = r.fallbackAudioId) }
                     ) {
                         Row(
                             modifier = Modifier
@@ -1034,38 +1005,6 @@ fun LibraryScreen() {
         }
     }
 
-    // — راهنمای نصب موتور گفتار فارسی (وقتی صدایی پخش نمی‌شود) —
-    if (showTtsHelp) {
-        AlertDialog(
-            onDismissRequest = { showTtsHelp = false },
-            title = { Text("موتور گفتار فارسی یافت نشد") },
-            text = {
-                Text("برای پخش صدای خوانش، «Google Speech Services» باید روی گوشی نصب و به‌روز باشد. با دکمهٔ پایین نصب یا به‌روزرسانی کن؛ بعد برنامه را ببند و دوباره باز کن.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showTtsHelp = false
-                    try {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.google.android.tts"))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    } catch (_: Exception) {
-                        try {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.tts"))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        } catch (_: Exception) {
-                        }
-                    }
-                }) { Text("نصب موتور گفتار") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTtsHelp = false }) { Text("بستن") }
-            }
-        )
-    }
 }
 
 /**

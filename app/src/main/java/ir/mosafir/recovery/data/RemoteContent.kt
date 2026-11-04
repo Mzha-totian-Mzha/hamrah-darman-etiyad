@@ -53,6 +53,11 @@ object RemoteContent {
     private const val KEY_CACHE = "cache"
     private const val KEY_URL = "url"
     private const val KEY_TIME = "time"
+    private const val KEY_ERROR = "last_error"
+
+    /** آخرین خطای اتصال ابری — برای نشان دادن دلیل واقعی در خط وضعیت */
+    fun lastError(ctx: Context): String =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_ERROR, "") ?: ""
 
     /** آدرس فعلی: اولویت با آدرسی که داخل خود اپ ثبت شده، وگرنه آدرس پیش‌فرض ریپو */
     fun currentUrl(ctx: Context): String =
@@ -99,6 +104,9 @@ object RemoteContent {
     /**
      * دریافت فایل از گیت‌هاب در پس‌زمینه و ذخیرهٔ کش.
      * نتیجه روی ترد اصلی برمی‌گردد: ok / تعداد قطعه‌های دریافتی / پیام خطا.
+     *
+     * برای پایداری در ایران، اگر آدرس اصلی (raw.githubusercontent.com) باز نشد،
+     * خودکار معادل jsDelivr (cdn.jsdelivr.net) هم امتحان می‌شود.
      */
     fun fetchAndApply(ctx: Context, onDone: (ok: Boolean, received: Int, message: String) -> Unit) {
         val appCtx = ctx.applicationContext
@@ -110,19 +118,59 @@ object RemoteContent {
             runCatching {
                 val url = currentUrl(appCtx)
                 if (!url.startsWith("http")) throw IOException("آدرس گیت‌هاب معتبر نیست")
-                val raw = download(url)
-                val list = parse(raw)
-                received = list.size
-                require(received > 0) { "فایل ابری خالی بود" }
-                appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString(KEY_CACHE, raw)
-                    .putLong(KEY_TIME, System.currentTimeMillis())
-                    .apply()
-                ok = true
+                var lastErr: String? = null
+                for (candidate in candidateUrls(url)) {
+                    try {
+                        val raw = download(candidate)
+                        val list = parse(raw)
+                        require(list.isNotEmpty()) { "فایل ابری خالی بود" }
+                        received = list.size
+                        appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                            .edit()
+                            .putString(KEY_CACHE, raw)
+                            .putLong(KEY_TIME, System.currentTimeMillis())
+                            .apply()
+                        ok = true
+                        break
+                    } catch (e: Exception) {
+                        lastErr = errText(e)
+                    }
+                }
+                if (!ok) throw IOException(lastErr ?: "اتصال برقرار نشد")
             }.onFailure { msg = it.message ?: "خطای نامشخص" }
+            appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putString(KEY_ERROR, if (ok) "" else msg).apply()
             main.post { onDone(ok, received, msg) }
         }.start()
+    }
+
+    /** آدرس اصلی + آینه‌های جایگزین (raw ↔ jsDelivr) */
+    private fun candidateUrls(url: String): List<String> {
+        val out = ArrayList<String>()
+        out.add(url)
+        jsDelivrOf(url)?.let { out.add(it) }
+        rawOfJsDelivr(url)?.let { out.add(it) }
+        return out.distinct()
+    }
+
+    /** raw.githubusercontent.com/USER/REPO/BRANCH/PATH → cdn.jsdelivr.net/gh/USER/REPO@BRANCH/PATH */
+    private fun jsDelivrOf(u: String): String? {
+        val m = Regex("https?://raw\\.githubusercontent\\.com/([^/]+)/([^/]+)/([^/]+)/(.+)").find(u.trim()) ?: return null
+        return "https://cdn.jsdelivr.net/gh/${m.groupValues[1]}/${m.groupValues[2]}@${m.groupValues[3]}/${m.groupValues[4]}"
+    }
+
+    /** cdn.jsdelivr.net/gh/USER/REPO@BRANCH/PATH → معادل raw */
+    private fun rawOfJsDelivr(u: String): String? {
+        val m = Regex("https?://cdn\\.jsdelivr\\.net/gh/([^/]+)/([^/@]+)(?:@([^/]+))?/(.+)").find(u.trim()) ?: return null
+        val branch = m.groupValues[3].ifBlank { "main" }
+        return "https://raw.githubusercontent.com/${m.groupValues[1]}/${m.groupValues[2]}/$branch/${m.groupValues[4]}"
+    }
+
+    private fun errText(e: Exception): String = when (e) {
+        is java.net.SocketTimeoutException -> "سرور پاسخ نداد (تایم‌اوت)"
+        is java.net.UnknownHostException -> "آدرس باز نشد (اینترنت یا فیلترینگ)"
+        is IOException -> e.message ?: "خطای شبکه"
+        else -> e.message ?: "خطای نامشخص"
     }
 
     private fun download(urlStr: String): String {
