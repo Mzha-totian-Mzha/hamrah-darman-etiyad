@@ -148,6 +148,11 @@ const NAV_COLORS = {
   settings: "#8B5CF6", // رنگ بخش «تقویم» برنامه «پلنر من» (#8B5CF6) — طبق درخواست کاربر
 };
 
+/* رنگ صورتی کارت «روز پاک من» و چیپ «پیشرفت سفر» در تب خانه — عمداً ثابتِ مستقل از NAV_COLORS تعریف شده
+   تا رنگ اصلی برنامه (کارت خانه) هرگز با تغییر رنگ تب آزمون عوض نشود؛
+   ریشهٔ «تغییر مکرر ظاهر برنامه» در پیش‌نمایش، وابستگی قبلی گرادیان کارت خانه به رنگ آزمون بود */
+const HOME_HERO_PINK = "#EC4899";
+
 /* رنگ نقطهٔ شماره‌دار هر مادهٔ مصرفی — الگو گرفته از چیپ‌های شماره‌دار «مواد مصرفی» (عکس ۱):
    ۱ نارنجی، ۲ فیروزه‌ای، ۳ سرخابی، ۴ رز، ۵ بنفش، ۶ کهربایی، ۷ سبز، ۸ خاکستری */
 const SUBSTANCE_DOTS: Record<SubstanceId, string> = {
@@ -1154,7 +1159,7 @@ function HomeScreen(props: {
       </div>
 
       {settings.startDate == null ? (
-        <div className="rounded-[28px] p-5 text-white" style={{ background: `linear-gradient(120deg, ${NAV_COLORS.home}, ${NAV_COLORS.exam})` }}>
+        <div className="rounded-[28px] p-5 text-white" style={{ background: `linear-gradient(120deg, ${NAV_COLORS.home}, ${HOME_HERO_PINK})` }}>
           <p className="text-[18px] font-black">سفرت را شروع کن!</p>
           <p className="mt-1.5 text-[12px] leading-6 opacity-90" style={{ textAlign: "justify" }}>
             برای فعال شدن برنامه DST، اول نوع مادهٔ مصرفی، تاریخ شروع و مقدار مصرف را در تنظیمات ثبت کن.
@@ -1168,7 +1173,7 @@ function HomeScreen(props: {
         </div>
       ) : (
         <>
-          <div className="rounded-[28px] p-5 text-white" style={{ background: `linear-gradient(120deg, ${NAV_COLORS.home}, ${NAV_COLORS.exam})` }}>
+          <div className="rounded-[28px] p-5 text-white" style={{ background: `linear-gradient(120deg, ${NAV_COLORS.home}, ${HOME_HERO_PINK})` }}>
             <p className="text-[12px] opacity-90">روز پاک من</p>
             <p className="mt-1 text-[38px] font-black leading-none">{faNum(days + 1)}</p>
             <p className="mt-2 text-[12px] opacity-90">از رهایی تا رهایی — متد DST</p>
@@ -1193,7 +1198,7 @@ function HomeScreen(props: {
               { label: "روز سفر", value: faNum(days + 1), color: NAV_COLORS.home, Icon: CalendarDays },
               { label: "پلهٔ جاری", value: step ? step.title : "پایان", color: NAV_COLORS.plan, Icon: Flag },
               { label: "هر وعده", value: step && step.perDoseCc > 0 ? `${faDose(step.perDoseCc)}cc` : "—", color: NAV_COLORS.journal, Icon: Droplet },
-              { label: "پیشرفت سفر", value: progress != null ? `${faNum(Math.round(progress * 100))}٪` : "—", color: NAV_COLORS.exam, Icon: TrendingUp },
+              { label: "پیشرفت سفر", value: progress != null ? `${faNum(Math.round(progress * 100))}٪` : "—", color: HOME_HERO_PINK, Icon: TrendingUp },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-2.5 rounded-[20px] p-3 shadow-sm" style={{ background: c.surface }}>
                 <ChipIcon color={s.color} Icon={s.Icon} />
@@ -1674,7 +1679,7 @@ const EXAM_CARDS: { id: ExamCardId; icon: typeof BookOpen; color: string; title:
   { id: "cat", icon: Layers, color: "#14B8A6", title: "تمرین دسته‌ای", sub: "تمرین روی یک منبع — مثلاً فقط ۱۴ وادی" },
   { id: "quick", icon: Timer, color: "#F59E0B", title: "آزمون سریع", sub: "۵ سؤال — چند دقیقه وقت می‌برد" },
   { id: "review", icon: RotateCcw, color: "#EC4899", title: "مرور اشتباه‌ها", sub: "فقط سؤال‌هایی که غلط جواب دادی" },
-  { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "سؤال‌های کوتاه‌متن با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
+  { id: "written", icon: BookOpen, color: "#E11D48", title: "تمرین تشریحی", sub: "سؤال‌های متن کوتاه با پاسخ — اول خودت جواب بده، بعد پاسخ را ببین" },
 ];
 
 /* منابع جزوه‌ای کنگره ۶۰ — سؤالاتشان به بانک اضافه شده و در چیپ‌های «انتخاب منبع» فعال‌اند */
@@ -1696,7 +1701,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   const [flashScores, setFlashScores] = useState<(boolean | null)[]>([]);
   const [quizCats, setQuizCats] = useState<Set<string>>(new Set());
   const [flashCats, setFlashCats] = useState<Set<string>>(new Set());
-  /* فقط سؤال‌های کوتاه‌متن در تمرین تشریحی (پیش‌فرض) — بلندها با گزینهٔ «همه» */
+  /* فقط سؤال‌های متن کوتاه در تمرین تشریحی (پیش‌فرض) — بلندها با گزینهٔ «همه» */
   const [flashShortOnly, setFlashShortOnly] = useState(true);
   const [noKeyMsg, setNoKeyMsg] = useState(false);
   /* کارت انتخاب‌شدهٔ صفحهٔ شروع (طرح ۵ کارت) + ذخیره‌گاه غلط‌ها */
@@ -1706,7 +1711,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   const [reviewEmpty, setReviewEmpty] = useState(false);
 
   useEffect(() => {
-    fetch("/questionbank.json?v=2", { cache: "no-store" })
+    fetch("/questionbank.json?v=3", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
       .then((d: Bank) => setBank(d))
       .catch(() => setBankError(true));
@@ -1735,9 +1740,13 @@ function ExamScreen({ c }: { c: ThemeColors }) {
     for (const q of bankQaUsable) if (!set.includes(q.cat)) set.push(q.cat);
     return set;
   }, [bankQaUsable]);
-  /* سؤال‌های کوتاه‌متن (پاسخ ≤ ۱۲۰ حرف) — برای مرور سریع تشریحی */
+  /* سؤال‌های متن کوتاه (پاسخ ≤ ۱۲۰ حرف) — برای مرور سریع تشریحی؛
+     دسته‌های کتابی «۶۰ درجه» و «تصاویر کتاب ۶۰ درجه» معاف‌اند (پاسخ‌هایشان کتابی و بالای سقف است
+     و اگر معاف نبودند، در حالت پیش‌فرض هیچ سؤالی برایشان پیدا نمی‌شد) */
   const QA_SHORT_MAX = 120;
-  const shortQaCount = useMemo(() => bankQaUsable.filter((q) => (q.a ?? "").length <= QA_SHORT_MAX).length, [bankQaUsable]);
+  const ALWAYS_QA_CATS = new Set(["۶۰ درجه", "تصاویر کتاب ۶۰ درجه"]);
+  const isShortQa = (q: BankQa) => ALWAYS_QA_CATS.has(q.cat) || (q.a ?? "").length <= QA_SHORT_MAX;
+  const shortQaCount = useMemo(() => bankQaUsable.filter(isShortQa).length, [bankQaUsable]);
 
   /* ——— آزمون شبانه (پیش‌نمایش وب) ——— */
   const todayKey = () => {
@@ -1866,7 +1875,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
   };
   const startFlash = () => {
     const idPool = bankQaUsable.filter(
-      (q) => (flashCats.size === 0 || flashCats.has(q.cat)) && (!flashShortOnly || (q.a ?? "").length <= QA_SHORT_MAX),
+      (q) => (flashCats.size === 0 || flashCats.has(q.cat)) && (!flashShortOnly || isShortQa(q)),
     );
     /* چرخش هوشمند: سؤال‌های تازه اول */
     const list = rotateFresh(idPool.map((q) => [q.id, q] as [string, BankQa]), loadRecent("flash"));
@@ -2152,13 +2161,13 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                   <SectionCard c={c} title="تمرین تشریحی" accent={cd.color}>
                     <p className="text-[12px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
                       {bank
-                        ? `${faNum(flashShortOnly ? shortQaCount : bankQaUsable.length)} سؤال تشریحی پاسخ‌دار ${flashShortOnly ? "کوتاه‌متن" : ""} از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
+                        ? `${faNum(flashShortOnly ? shortQaCount : bankQaUsable.length)} سؤال تشریحی پاسخ‌دار ${flashShortOnly ? "متن کوتاه" : ""} از ۱۴ وادی عشق، ۱۴ مقاله، راهنما و راهنمایی و… اول خودت پاسخ بده، بعد پاسخ را ببین و صادقانه علامت بزن.`
                         : "در حال بارگذاری بانک سؤال…"}
                     </p>
                     {/* حالت طول پاسخ: کوتاه (پیش‌فرض) یا همهٔ سؤال‌ها */}
                     <div className="flex flex-wrap justify-center gap-1.5">
                       {([
-                        [true, "کوتاه‌متن (پیش‌فرض)"],
+                        [true, "متن کوتاه"],
                         [false, "همهٔ سؤال‌ها"],
                       ] as const).map(([val, label]) => {
                         const sel = flashShortOnly === val;
@@ -2179,7 +2188,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
                       })}
                     </div>
                     <p className="text-center text-[10.5px] leading-5" style={{ color: c.onSurfaceVariant, textAlign: "justify" }}>
-                      در حالت «کوتاه‌متن» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند.
+                      در حالت «متن کوتاه» فقط پاسخ‌های کوتاه (تا ۱۲۰ حرف) می‌آید — مناسب مرور سریع؛ پاسخ‌های بلند با گزینهٔ «همهٔ سؤال‌ها» تمرین می‌شوند. سؤال‌های «۶۰ درجه» و «تصاویر کتاب ۶۰ درجه» در هر دو حالت می‌آیند.
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {flashCatOptions.map((cat) => {
@@ -2283,7 +2292,7 @@ function ExamScreen({ c }: { c: ThemeColors }) {
 
           <p className="text-center text-[10.5px]" style={{ color: c.onSurfaceVariant }}>
             {bank
-              ? `${faNum(bankMcqUsable.length)} سؤال تستی کلیددار + ${faNum(CORE_DST.length)} سؤال متد DST · ${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار`
+              ? `${faNum(bankMcqUsable.length)} سؤال تستی کلیددار + ${faNum(CORE_DST.length)} سؤال متد DST و ${faNum(bankQaUsable.length)} سؤال تشریحی پاسخ‌دار`
               : "در حال بارگذاری بانک سؤال…"}
           </p>
 
@@ -2442,7 +2451,9 @@ function ExamScreen({ c }: { c: ThemeColors }) {
           {flashList[fIndex] == null ? (
             <SectionCard c={c}>
               <p className="text-[12.5px] leading-6" style={{ color: c.onBg, textAlign: "justify" }}>
-                سؤالی در این دسته‌ها پیدا نشد؛ دسته‌های دیگری را انتخاب کن یا بانک را از منابع تازه به‌روز کن.
+                {flashShortOnly
+                  ? "در این دسته‌ها سؤالِ با پاسخ کوتاه پیدا نشد؛ گزینهٔ «همهٔ سؤال‌ها» را انتخاب کن یا دسته‌های دیگری را اضافه کن."
+                  : "سؤالی در این دسته‌ها پیدا نشد؛ دسته‌های دیگری را انتخاب کن یا بانک را از منابع تازه به‌روز کن."}
               </p>
               <button
                 onClick={() => setPhase("start")}
