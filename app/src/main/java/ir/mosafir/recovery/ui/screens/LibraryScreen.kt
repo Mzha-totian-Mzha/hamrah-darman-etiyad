@@ -9,7 +9,10 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,10 +40,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -530,6 +535,10 @@ fun LibraryScreen() {
     //   اگر اینترنت/منبع در دسترس نبود، همین بانک محلی پاک‌سازی‌شده کار می‌کند.
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
+    // — دکمهٔ «بروزرسانی دیتاها»: چرخ‌دندهٔ کوچک روی خود دکمه + یک خط نتیجه که خودش محو می‌شود —
+    var cloudBusy by remember { mutableStateOf(false) }
+    var cloudMsg by remember { mutableStateOf<String?>(null) }
+
     fun stopSpeak() {
         player?.let { p ->
             try { p.stop() } catch (_: Exception) {}
@@ -649,27 +658,56 @@ fun LibraryScreen() {
         cardTexts = next
     }
 
-    // — دریافت بی‌صدای قطعه‌های ابری از گیت‌هاب و افزودن به بانک (بدون هیچ پیامی) —
-    fun startCloudFetch() {
-        RemoteContent.fetchAndApply(context) { ok, _, _ ->
-            if (ok) {
-                val fresh = RemoteContent.cachedPassages(context)
-                    .filter { !isLatinHeavy(it.text) }
-                val known = passages.map { it.id }.toSet()
-                val added = fresh.filter { p -> p.id !in known }
-                if (added.isNotEmpty()) {
-                    passages = passages + added.map { Passage(it.id, it.src, it.n, it.text) }
-                    rotateAll()
-                }
-            }
+    // — انگشت‌نگاری بانک برای تشخیص تغییر واقعی (id + متن هر قطعه) —
+    fun bankFingerprint(list: List<Passage>): Int =
+        list.sortedBy { it.id }.joinToString("|") { "${it.id}:${it.text.hashCode()}" }.hashCode()
+
+    // — بانک ابری کامل: کش ابری با همان قانون متن‌های داخلی پاک‌سازی می‌شود (برش از سرِ جمله) —
+    fun cleanedCloudBank(): List<Passage> =
+        cleanPassages(RemoteContent.cachedPassages(context).map { Passage(it.id, it.src, it.n, it.text) })
+
+    // — اعمال بانک ابری: جایگزینی کامل بانک + چرخش تازهٔ پیام امروز و همهٔ ۱۲ کارت —
+    fun applyCloudBank(): Int {
+        val fresh = cleanedCloudBank()
+        if (fresh.isEmpty()) return 0
+        passages = fresh
+        rotateAll()
+        return fresh.size
+    }
+
+    // — دکمهٔ «بروزرسانی دیتاها»: همیشه دریافت واقعی از گیت‌هاب؛ بدون هیچ پنجره و آدرسی —
+    fun startCloudRefresh() {
+        if (cloudBusy) return
+        cloudBusy = true
+        RemoteContent.fetchAndApply(context) { ok, _, errMsg ->
+            cloudBusy = false
+            cloudMsg = if (ok) {
+                val n = applyCloudBank()
+                if (n > 0) "دریافت شد — $n قطعه از همهٔ منابع — همهٔ کارت‌ها تازه شد"
+                else "فایل ابری خالی بود — بانک محلی ماند"
+            } else "دریافت نشد — ${errMsg ?: "خطای نامشخص"}"
+            mainHandler.postDelayed({ cloudMsg = null }, 4500)
         }
     }
 
     // — با هر ورود به کتابخانه: بانک پاساژها خوانده و چرخش تازه انجام می‌شود —
+    //   دریافت ابری بی‌صدا حداکثر هر ۱۰ دقیقه یک‌بار؛ فقط اگر بانک ابری واقعاً تغییر کرده باشد اعمال می‌شود
     LaunchedEffect(Unit) {
         if (passages.isEmpty()) passages = cleanPassages(loadPassages(context))
         rotateAll()
-        if (RemoteContent.isConfigured(context)) startCloudFetch()
+        if (RemoteContent.isConfigured(context) &&
+            System.currentTimeMillis() - RemoteContent.lastFetchTime(context) > 10 * 60 * 1000L
+        ) {
+            RemoteContent.fetchAndApply(context) { ok, _, _ ->
+                if (ok) {
+                    val fresh = cleanedCloudBank()
+                    if (fresh.isNotEmpty() && bankFingerprint(fresh) != bankFingerprint(passages)) {
+                        passages = fresh
+                        rotateAll()
+                    }
+                }
+            }
+        }
     }
 
     // — با بازگشت به برنامه (از پس‌زمینه) هم چرخش تازه انجام می‌شود —
@@ -787,11 +825,73 @@ fun LibraryScreen() {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            ScreenHeader(
-                title = "کتابخانه",
-                subtitle = "متن و خوانش کتاب‌ها و متون کنگرهٔ ۶۰ — با صدای مرد و زن",
-                accent = NavAmber
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                ScreenHeader(
+                    title = "کتابخانه",
+                    subtitle = "متن و خوانش کتاب‌ها و متون کنگرهٔ ۶۰ — با صدای مرد و زن",
+                    accent = NavAmber
+                )
+                // دکمهٔ «بروزرسانی دیتاها» — گوشهٔ مقابل عنوان
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, NavAmber),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .clip(RoundedCornerShape(50))
+                        .clickable(enabled = !cloudBusy) { startCloudRefresh() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (cloudBusy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(13.dp),
+                                strokeWidth = 1.8.dp,
+                                color = NavAmber
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                text = "در حال دریافت…",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NavAmber
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = "بروزرسانی دیتاها",
+                                tint = NavAmber,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                text = "بروزرسانی دیتاها",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NavAmber
+                            )
+                        }
+                    }
+                }
+            }
+            // خط نتیجهٔ دریافت — خودش بعد از چند ثانیه محو می‌شود؛ بدون پنجره و بدون آدرس
+            AnimatedVisibility(
+                visible = cloudMsg != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = cloudMsg.orEmpty(),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
         }
 
         // پیام امروز — محتوای تأثیرگذار چرخشی (کادر قرمز عکس ۱)
